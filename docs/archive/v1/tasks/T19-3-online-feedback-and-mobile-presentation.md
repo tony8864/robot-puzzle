@@ -116,5 +116,5 @@ Manual device evidence is separate: the owner confirmed Android installation and
 basic offline cold-launch/error/online recovery after T19.2, before these newer
 disabled controls. Physical iPhone, OS safe insets, actual keyboard behavior,
 manual update adoption and T19.3 control review remain T19.4. See
-[PWA testing](../pwa-testing.md). No dependency, commit, deployment, trust setting
+[PWA testing](../../../pwa-testing.md). No dependency, commit, deployment, trust setting
 or unrelated user change was modified.

@@ -1,14 +1,18 @@
-# Product Requirements — Multiplayer Sliding-Robot Puzzle
+# Product Requirements — Robot Puzzle
 
-**Status:** MVP product baseline  
-**Version:** 0.1  
-**Purpose:** Source of truth for product behavior before implementation. This document is not a technical architecture or Codex instruction file.
+**Status:** Current approved product baseline, reviewed 2026-11-11.
+
+This document defines approved gameplay and UX. [Architecture](architecture.md)
+describes implementation; [next release](next-release.md) tracks proposals, which
+are not approved requirements until explicitly accepted. Device and deployment
+verification limits are recorded separately from product requirements.
 
 ## 1. Product vision
 
 A free, mobile-first, private multiplayer puzzle game inspired by the *sliding-robot* gameplay of Ricochet Robots. Friends join a room, inspect the same board, mentally find routes to a target, bid how many moves they need, and demonstrate their solution. The experience should feel like playing a physical tabletop puzzle game together.
 
-The game will use an original name, original board layouts, and original visual assets. This document does not establish intellectual-property clearance.
+The game is named Robot Puzzle and uses original board layouts and visual assets.
+This document does not establish intellectual-property clearance.
 
 ## 2. Target audience and platform
 
@@ -18,31 +22,32 @@ The game will use an original name, original board layouts, and original visual 
 - An internet connection is required for multiplayer.
 - Private rooms only. No public matchmaking.
 
-## 3. MVP user journey
+## 3. Player journey
 
 1. Player opens the game, enters or reuses a nickname, and creates a private room or joins one.
 2. Host shares a room code or invite link.
-3. Players join the lobby. The host starts the match when at least two players are present.
+3. Players join the lobby. The host starts the match when at least two players have seats.
 4. The room locks to new participants once the match starts.
 5. All players see the same 16×16 board, four robots, and active target.
 6. Players solve mentally; the board is read-only during thinking and bidding.
 7. The first bid starts a 60-second bidding window.
 8. After bidding closes, eligible bidders demonstrate in ascending bid order.
 9. A successful demonstration awards one point and establishes the robot positions for the next round.
-10. A new target is revealed; repeat for 10 rounds.
-11. Show results and allow a rematch.
+10. The host advances from the round result; prepare and reveal a new target. Repeat for 10 rounds.
+11. Show final results. The host may return everyone to the lobby for another match, then explicitly start it.
 
 ## 4. Board and visual design
 
 - Board is **16×16 cells**, chosen from a catalog of **several original, individually designed full boards**.
 - Match variety comes from selecting a complete board; quadrant rotation/rearrangement and procedural wall generation are not part of the MVP.
 - Outer board boundaries block movement. The central 2×2 area is blocked.
-- Walls are bold, dark lines on **cell edges**; grid lines are subtle.
-- Four robots are simple solid circles: **red, blue, green, yellow**. Small distinguishing symbols are desirable for accessibility.
+- Internal walls are bold, light lines (`#A8BED8`) on **cell edges**; grid lines are subtle and the outer boundary remains distinct. Keep the current light wall appearance, confirmed by the owner on 2026-11-11.
+- Four robots are simple solid circles: **red, blue, green, yellow**, with the corresponding letters **R, B, G, Y** so color is not the only identifier.
 - Each board has **17 targets** at predefined positions: star, crescent moon, upright triangle, and square in each of the four robot colors, plus one neutral vortex wildcard.
 - Each target occupies a cell with two perpendicular wall edges meeting at one cell corner. Interior wall segments form perpendicular angles; an unpaired segment is allowed only when exactly one endpoint touches the outer board border and the other endpoint is inside the board. Outer boundaries and edges beside blocked cells remain implicit barriers.
 - Colored targets require the matching robot; the vortex accepts any robot. Symbols identify individual targets and do not change movement or completion rules.
-- All 17 targets remain visible on the board. Inactive targets are slightly muted; the active target is shown at full brightness with a white rounded outline around its cell, still visible when a robot lands there.
+- All 17 targets remain visible on the board. Inactive targets are slightly muted; the active target is shown at full brightness with the approved **soft cell fill**, visible around a robot when occupied.
+- The selected robot has a **thin white ring**. This indicates robot selection and is separate from the active target's cell fill.
 - Board is displayed with scalable SVG and occupies as much phone width as practical.
 
 ## 5. Robot movement rules
@@ -65,6 +70,7 @@ The game will use an original name, original board layouts, and original visual 
 - A prevalidated puzzle library may be used to reduce computational cost, but **later rounds must be checked against the actual carry-forward positions**, not just the initial match positions.
 - The board layout stays fixed for the duration of the match.
 - **Robot positions are not reset between successful rounds.**
+- While a verified target is being prepared, show a read-only board and preparation status. If preparation cannot verify a target, preserve official positions and reveal nothing. Deferred/error preparation permits an explicit host Retry after a cooldown; unavailable preparation has no recovery action. Do not silently reset robots, substitute boards, reuse targets or show an unverified target.
 
 ## 7. Thinking and bidding
 
@@ -72,11 +78,12 @@ The game will use an original name, original board layouts, and original visual 
 - Thinking has **no automatic time limit** until a bid is placed.
 - During thinking and bidding, nobody may move or privately simulate robots in the game interface.
 - A bid is a positive integer representing the **maximum number of moves** the player claims to need.
+- Every player may bid independently of other players' values. The implementation accepts positive safe integers; no additional gameplay cap is imposed.
 - The **first accepted bid** starts a **60-second countdown** visible to everyone.
 - Other players may submit bids during that countdown.
 - Players may **lower** an existing bid, but may not raise it.
-- At zero, bidding closes; no late bids are accepted.
-- Demonstration order is ascending by final bid count; **earlier bid submission has priority for equal bids**.
+- Bidding closes at the server deadline; no new or revised bid is accepted at or after it. Revising a bid never restarts or extends the window.
+- Demonstration order is ascending by final bid count; **earlier first accepted bid has priority for equal bids**, including after reductions.
 - If nobody bids, the host may skip the round (with confirmation). No point is awarded.
 
 ## 8. Demonstration and undo
@@ -97,6 +104,7 @@ The game will use an original name, original board layouts, and original visual 
 - **Failed or abandoned demonstration:** restore all robots to the positions they had **at the beginning of the round**, then let the next eligible bidder try the same target.
 - If all eligible bidders fail or the host skips the round, award no points and keep the round-start robot positions for the next round.
 - Each new round reveals a new solvable target from the current official positions.
+- The round result remains until the host advances. Guests wait; there is no automatic next-round transition. After round 10, the host advances to final results instead of revealing an eleventh target.
 
 ## 10. Scoring and match end
 
@@ -104,16 +112,17 @@ The game will use an original name, original board layouts, and original visual 
 - No points for failed or skipped rounds.
 - After 10 rounds, show a scoreboard sorted by points.
 - Equal highest scores are a **shared win**; no tiebreaker.
-- A rematch keeps the players in the room, resets scores, and starts a new match with a new valid board/puzzle setup.
+- The host's **New Match** action returns the same players to the same room's lobby, retaining the completed board as a preview. The host may Shuffle and must explicitly Start; returning to the lobby does not start a match automatically.
+- Starting that match resets scores and uses the selected board's initial robot positions. A different board is optional, not automatic.
 
 ## 11. Private rooms and player identity
 
 - No accounts, email addresses, passwords, friends lists, or public matchmaking in the MVP.
 - Players choose a nickname; the device may remember it for convenience.
-- Each player also has a private session identifier to support reconnecting to their existing seat.
+- A private, unguessable browser credential identifies the player's seat for reconnecting; nickname or room code alone is insufficient. Browser identity lasts a fixed 24 hours from issuance and is not renewed by refresh, activity or rematch. An expired identity cannot reclaim a seat by nickname.
 - Room invites support **both a shareable link and a short code**.
 - Host starts the match; at least two players are required, and the MVP room cap is six.
-- **No late joins:** once the match starts, new participants cannot enter. Previously joined players may reconnect.
+- **No late joins:** once the match starts, new participants cannot enter, including on final results. Previously joined players may reconnect while their identity and room remain valid. New joins reopen when the host returns to the lobby.
 - Host authority stays with the original host; there is no host transfer. If the host is unavailable, host-only actions wait for their return while other permitted play may continue.
 - Guests have Leave Room; the host instead has End Room, both with confirmation. Guest Leave exits only the current tab, preserving the seat, bids and scores in every phase, including lobby; other tabs remain connected and no roster slot is freed. If the active bidder's final tab leaves, normal disconnect grace applies rather than implicit Give Up. End Room closes the room for everyone and invalidates its code/invites; it does not declare an unfinished-match winner or award points.
 - A room expires after 30 continuous minutes with nobody connected. An authenticated player returning before expiry cancels the countdown. A connected room does not expire merely because nobody makes a move or bid. Expiry is separate from the fixed 24-hour browser identity lifetime.
@@ -127,6 +136,7 @@ The game will use an original name, original board layouts, and original visual 
 - Show clear states for disconnected, reconnecting, waiting, success, and failure.
 - Prioritize touch target size and legibility on real iPhones.
 - Do not depend on preventing iPhone screen sleep; recover gracefully when the browser resumes.
+- Cached PWA assets may let the app open while offline, but multiplayer requires connectivity. Show connection status and disable state-changing controls until synchronized; do not queue offline bids or moves for later submission.
 
 ## 13. Reliability and fairness requirements
 
@@ -144,23 +154,27 @@ The game will use an original name, original board layouts, and original visual 
 - Custom user-created boards or an in-app level editor.
 - Native App Store / Google Play distribution.
 
-## 15. Open implementation details (not blockers to the first prototype)
+## 15. Remaining verification and product decisions
 
-These should be resolved during architecture or testing, without silently changing the rules above:
+The catalog, bid tie priority, identity lifetime, disconnect grace, room expiry,
+seat-preserving Leave and explicit host rematch flow are settled. Their technical
+details belong in [architecture](architecture.md), not an open product backlog.
 
-1. Initial full-board catalog size, exact wall/target coordinates, and valid initial robot positions for each board.
-2. Practical puzzle-validation strategy and acceptable solver runtime; ensure the 10-round target supply is sufficient as positions change.
-3. Disconnect detection details and implementation of the approved 60-second bidder grace, confirmed host skip, no host transfer, and 30-minute empty-room expiry.
-4. Maximum accepted bid and how bid-submission timestamps are defined for tie priority.
-5. Handling a player who leaves permanently after placing a bid.
-6. Invite-link routing and session persistence on iPhone Safari.
-7. Final original game name, branding, and legal review before wider distribution.
+- **Target availability:** bounded validation does not guarantee ten verified targets from every possible carry-forward position. An alternative recovery policy needs approval; the current behavior preserves positions and withholds unverified targets.
+- **Device compatibility:** real iPhone Safari invite, identity, background/resume and PWA behavior remain incompletely verified. See [browser testing](browser-testing.md) and [PWA testing](pwa-testing.md) for evidence and limits.
+- **Hosted operation:** solver resource use, general hosted limits and deployed-version identification remain unverified as described in [deployment](deployment.md).
+- **Wider distribution:** branding and legal review remain separate from this requirements baseline.
+
+Release additions, including bid increases, early bidding closure and discussion
+tools, remain proposals in [next release](next-release.md). This cleanup does not
+approve them or certify deployment/device behavior.
 
 ## 16. Acceptance scenarios
 
 - **Movement:** Red moves right and stops immediately before a wall or another robot; a blocked direction does not increase move count.
 - **Bidding:** Maria bids 7, Alex bids 6, Maria lowers to 5; after the timer ends, Maria demonstrates first.
 - **Equal bids:** Maria submits 6 before Alex submits 6; Maria has first priority.
+- **Tie after reduction:** Maria submits 7, Alex submits 6, then Maria lowers to 6; Maria retains priority from her first accepted bid and the deadline is unchanged.
 - **Undo:** A player bids 7, makes 5 moves, undoes 2, and completes in 6 current moves; the attempt succeeds.
 - **Failed attempt:** Maria gives up after moving robots; Alex begins from the original positions for that round.
 - **Carry-forward:** Alex solves a target with red and blue moved; the next round begins with **both** at their final positions.
@@ -168,3 +182,5 @@ These should be resolved during architecture or testing, without silently changi
 - **No bids:** Host skips the round; no point awarded and robot positions remain unchanged.
 - **Reconnection:** An existing participant reconnects to their seat after room lock; an unrelated new participant cannot join.
 - **Match end:** After 10 rounds, tied leaders share the win.
+- **Another match:** Host selects New Match, everyone returns to the lobby, and play waits for an explicit Start. The previous board remains selected unless the host shuffles.
+- **Visual indicators:** The active target has the soft cell fill; the selected robot has a thin white ring. Light internal walls remain distinct from the subtle grid.

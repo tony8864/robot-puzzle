@@ -48,7 +48,7 @@ traces/videos and credential dumps are not enabled. No CA/system trust, developm
 rooms, `.dev.vars`, running servers, gameplay/UI or normal routing was changed.
 
 The built assets are served by Miniflare's same-origin asset router, not Vite's
-development proxy; the limitation is explicit in [browser testing](../browser-testing.md).
+development proxy; the limitation is explicit in [browser testing](../../../browser-testing.md).
 Only the disposable Chromium process ignores test-certificate errors. Native TLS
 trust, authenticated lobby WSS and physical devices remain unverified here.
 

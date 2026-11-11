@@ -84,7 +84,7 @@ handler, session rotation flow or certificate installation is implied. Stop here
 - Runtime/header tests are not evidence of browser cookie storage. No certificate
   was generated or trusted; no Android, browser-cookie, WSS, room or UI completion
   is claimed. Toolchain/Windows cleanup limitations remain as documented in
-  [local development](../local-development.md).
+  [local development](../../../local-development.md).
 - Verification on 2026-10-28: all 57 server tests / 978 workspace tests passed,
   workspace type checks and production build passed. Real browser-cookie and
   Android checks remain pending, not substituted with HTTP header assertions.

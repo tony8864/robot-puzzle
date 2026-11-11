@@ -1,11 +1,32 @@
 # Private Cloudflare deployment
 
-Status: production configuration prepared; nothing deployed by this checkpoint.
+Status (2026-11-11): the public root URL serves the Robot Puzzle HTML shell.
+The deployed source revision and Cloudflare deployment/version ID are unverified.
+
+## Current deployment evidence
+
+- A read-only HTTPS GET to `https://robot-puzzle.tonyivanov88.workers.dev/`
+  returned HTTP 200 with `Content-Type: text/html`, title `Robot Puzzle`, and
+  references to the app's JavaScript, stylesheet, manifest and icons on 2026-11-11.
+  Those referenced resources were not fetched and the app was not rendered.
+- Local Git tag `v1.0.0` resolves to
+  `a8e4d0761c3563a7f9db80c100586214d3cdb887`, also the current HEAD at this review.
+  This is a source baseline, not evidence that this commit or version is deployed.
+- This check did not verify API/WebSocket behavior, hosted room persistence,
+  multiplayer gameplay, PWA installation/update behavior, device compatibility,
+  solver performance or hosted resource limits. Earlier local checks below do
+  not establish these hosted properties.
+- Deployment time, account/plan state, hosted configuration and migration state,
+  Cloudflare deployment/version IDs, and a tested rollback procedure remain
+  unverified in this review. No deployment or infrastructure change was made.
 
 ## Selected setup
 
+The following describes repository configuration and the selected hosting plan,
+not independently verified hosted account state.
+
 - One Worker named `robot-puzzle`, serving the built React app and API together.
-- Intended origin: `https://robot-puzzle.tonyivanov88.workers.dev`.
+- Configured production origin: `https://robot-puzzle.tonyivanov88.workers.dev`.
 - Existing SQLite-backed Registry and Room classes; new hosted namespaces, not
   a copy of local `.wrangler` storage. Local nicknames/seats/rooms do not migrate.
 - Start on Workers Free. Hosted limits, solver CPU/storage usage and iPhone
@@ -20,7 +41,8 @@ preview URLs and persisted observability, and leaves local timeout overrides out
 The Worker name/subdomain must match the signed-in target account. Stop if they
 do not; never broaden allowed Origins to work around a mismatch.
 
-Static assets come from `apps/web/dist`; `/room/:code` uses the SPA shell.
+In the repository configuration, static assets come from `apps/web/dist`;
+`/room/:code` uses the SPA shell.
 `/api` and `/api/*` always reach the actual Worker, including unknown API paths
 and WebSocket upgrades. No Vite server, local certificates, private keys or
 developer variables are deployed. The production service worker remains an
@@ -45,7 +67,7 @@ That test uses production config settings and actual backend code with small
 temporary asset fixtures. Existing browser tests cover the real production web
 build separately; neither proves hosted quotas or TLS behavior.
 
-## Gate before actual deployment
+## Historical preparation evidence
 
 ### Preparation evidence (2026-11-05)
 
@@ -65,6 +87,8 @@ No dependencies, game logic, browser trust, local config or account resources
 were changed. Wrangler prints an update-available notice; tooling was not upgraded.
 These are preparation checks, not a hosted performance or deployment pass.
 
+## Gate before future deployment
+
 Do not run a real deploy until the owner explicitly approves it. Confirm:
 
 - Signed-in account owns `tonyivanov88.workers.dev` and stays on the chosen plan.
@@ -75,7 +99,7 @@ Do not run a real deploy until the owner explicitly approves it. Confirm:
 - The public URL will be internet-accessible; room codes are not a site-wide
   access control. Existing request limits are not comprehensive DoS protection.
 
-After an approved first deployment, verify the exact public URL, assets/PWA,
+For an approved deployment, verify the exact public URL, assets/PWA,
 API rejection behavior, two-device full game, solver performance, reconnects and
 the deferred iPhone Safari checks before sharing broadly. Do not assume local
 sessions or installed local PWA credentials carry to the hosted origin. Keep

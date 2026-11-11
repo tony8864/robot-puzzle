@@ -62,7 +62,7 @@ board catalog membership, retry uniqueness, or message rate limits. Never treat
 the UUID format, context IDs, or successful parsing as proof of authority.
 
 The approved protocol and remaining server gates are documented in
-[`T13.1`](../../docs/tasks/T13-1-message-inventory-and-protocol-design.md).
+[`T13.1`](../../docs/archive/v1/tasks/T13-1-message-inventory-and-protocol-design.md).
 
 ## Public room state (T13.3)
 

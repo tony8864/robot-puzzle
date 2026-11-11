@@ -98,4 +98,4 @@ Verification on 2026-10-28: all 106 server / 1,027 workspace tests, workspace ty
 checks and production build passed. The documented Windows temporary-directory
 cleanup warning remains non-blocking. Real browser-cookie/Android checks are not
 claimed. No UI, sockets, host-transfer, gameplay, deployment or commit was added.
-See [local development](../local-development.md) for same-origin console recipes.
+See [local development](../../../local-development.md) for same-origin console recipes.

@@ -110,7 +110,7 @@ It has no production debug endpoint, fake accepted state or changed server clock
 No user rooms, certificates, trust, credentials, configuration or unrelated files
 were deleted/changed. No commit or deployment. Build/protocol compatibility,
 storage eviction and physical iPhone/offline/update behavior need later checks;
-see [PWA testing](../pwa-testing.md). T19.3 has not started.
+see [PWA testing](../../../pwa-testing.md). T19.3 has not started.
 
 Subsequent owner Android check: using the production-preview instructions, the
 owner confirmed closing/reopening the installed app with connectivity off still

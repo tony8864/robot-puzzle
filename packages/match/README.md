@@ -308,4 +308,4 @@ call, not on package import or creation. No React,
 Cloudflare, networking, timer, randomness, persistence, or state library is used.
 
 The full reviewed state/transition table is in
-`docs/tasks/T11-1-state-and-transition-design.md`.
+`docs/archive/v1/tasks/T11-1-state-and-transition-design.md`.

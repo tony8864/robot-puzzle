@@ -70,5 +70,5 @@ No full multiplayer E2E suite or full workspace unit suite was rerun in this
 metadata/assets-only checkpoint. No system trust/device configuration, live room,
 deployment or commit was changed. Browser TLS exceptions are confined to the
 existing disposable harness. Actual Android install/launch and physical iPhone
-checks remain pending; follow [PWA testing](../pwa-testing.md), which also records
+checks remain pending; follow [PWA testing](../../../pwa-testing.md), which also records
 primary browser references and current checkpoint limitations. T19.2 is not started.
