@@ -124,7 +124,7 @@ attachment reconstruction is tested separately from the actual cold restart.
 
 No real browser profiles or Android HTTPS session was exercised: certificates/
 device trust have not been installed or authorized. Runtime tests are not browser
-cookie acceptance evidence. Review the [console procedure](../local-development.md)
+cookie acceptance evidence. Review the [console procedure](../../../local-development.md)
 with the owner next; product UI and a networked match are still not implemented.
 
 Verification on 2026-10-28: 120 server / 1,041 workspace tests passed; workspace

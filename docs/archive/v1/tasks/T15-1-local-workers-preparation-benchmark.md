@@ -62,8 +62,8 @@ performance validation remains a separately authorized pre-deployment check.
   accounting, input immutability, alternate target and failure cases.
 - Round-trip median / p95 / maximum: 7.34 / 52.23 / 130.60 ms. Internal local
   clock measurements are separate, not CPU time. No peak-memory measurement or
-  hosted performance claim. See [report](../benchmarks/T15-local-workers-preparation.md)
-  and [raw evidence](../benchmarks/T15-local-workers-results.json).
+  hosted performance claim. See [report](../../../benchmarks/T15-local-workers-preparation.md)
+  and [raw evidence](../../../benchmarks/T15-local-workers-results.json).
 - Recommendation: retain the existing provisional 50k/150k per-candidate and
   200k aggregate policy for the next local checkpoint; no automatic escalation,
   one job, scheduled outside Start/Continue. No batching redesign is justified

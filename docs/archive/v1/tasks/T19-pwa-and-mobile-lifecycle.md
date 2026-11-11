@@ -8,7 +8,7 @@ include a real direct-link join, physical final-results review and Android updat
 adoption to `v0.1.0`. The owner approved deferring physical iPhone Safari checks
 to T21's trusted HTTPS deployment. Exact browser versions were not recorded. An
 intermittent slow tab-close/rejoin was observed but not consistently reproduced.
-Parent: Milestone 5 in [the plan](../plan.md).
+Parent: Milestone 5 in [the plan](../../../plan.md).
 
 ## Goal
 

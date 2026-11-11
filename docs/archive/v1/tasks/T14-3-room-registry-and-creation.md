@@ -98,7 +98,7 @@ recovers both a merely reserved room and one initialized before publication.
 The test-only reservation path is bundled only in the persistence fixture, never
 in the Worker entry. No real-time sleep or production seed hook is used.
 
-Browser-console instructions are in [local development](../local-development.md).
+Browser-console instructions are in [local development](../../../local-development.md).
 No new product/game rule, UI, join/start/socket handler, deployment or commit is
 included. The existing pinned-toolchain/Windows temporary-cleanup warning remains.
 

@@ -259,7 +259,7 @@ deployment is authorized by approving code scaffolding alone.
   and game logic are untouched. No credentials/certificates were created.
 - Local startup, direct/proxied HTTP health and the existing web entry were
   checked. Tests cover object/storage isolation, schema handling and full runtime
-  shutdown/recreation with persisted data. See [local development](../local-development.md)
+  shutdown/recreation with persisted data. See [local development](../../../local-development.md)
   for commands, limitations and certificate/reset instructions.
 - Windows Workers-adapter temporary-file cleanup can warn `EBUSY` after passing
   assertions; dedicated restart-test storage cleanup succeeds. Do not suppress
