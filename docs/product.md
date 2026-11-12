@@ -46,8 +46,8 @@ This document does not establish intellectual-property clearance.
 - Each board has **17 targets** at predefined positions: star, crescent moon, upright triangle, and square in each of the four robot colors, plus one neutral vortex wildcard.
 - Each target occupies a cell with two perpendicular wall edges meeting at one cell corner. Interior wall segments form perpendicular angles; an unpaired segment is allowed only when exactly one endpoint touches the outer board border and the other endpoint is inside the board. Outer boundaries and edges beside blocked cells remain implicit barriers.
 - Colored targets require the matching robot; the vortex accepts any robot. Symbols identify individual targets and do not change movement or completion rules.
-- All 17 targets remain visible on the board. Inactive targets are slightly muted; the active target is shown at full brightness with the approved **soft cell fill**, visible around a robot when occupied.
-- The selected robot has a **thin white ring**. This indicates robot selection and is separate from the active target's cell fill.
+- All 17 targets remain visible on the board. Inactive targets are slightly muted; the active target is shown at full brightness with **four inset L-shaped corner brackets** in `#B8CCE3`. Keep its normal dark-blue cell background, shape, color and position. No additional fill, glow, pulse or animation.
+- The selected robot has a **thin white ring**. This indicates robot selection and is separate from the active target's corner brackets.
 - Board is displayed with scalable SVG and occupies as much phone width as practical.
 
 ## 5. Robot movement rules
@@ -183,4 +183,4 @@ approve them or certify deployment/device behavior.
 - **Reconnection:** An existing participant reconnects to their seat after room lock; an unrelated new participant cannot join.
 - **Match end:** After 10 rounds, tied leaders with nonzero scores share the win. If everyone scores zero, display “No winner.”
 - **Another match:** Host selects New Match, everyone returns to the lobby, and play waits for an explicit Start. The previous board remains selected unless the host shuffles.
-- **Visual indicators:** The active target has the soft cell fill; the selected robot has a thin white ring. Light internal walls remain distinct from the subtle grid.
+- **Visual indicators:** Only the active target has inset corner brackets over the normal cell background; the selected robot has a thin white ring. Light internal walls remain distinct from the brackets and subtle grid.

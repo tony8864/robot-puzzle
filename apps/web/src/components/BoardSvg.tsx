@@ -73,6 +73,7 @@ export function BoardSvg({
 }: BoardSvgProps): ReactElement {
   const titleId = useId();
   const descriptionId = useId();
+  const blockedPatternId = useId();
   const gridLines = Array.from({ length: BOARD_SIZE - 1 }, (_, index) => index + 1);
   const robotDescription = ROBOT_IDS.map((robotId) => {
     const position = robots[robotId];
@@ -103,17 +104,6 @@ export function BoardSvg({
         y={0}
       />
 
-      {board.blockedCells.map((cell) => (
-        <rect
-          className="game-board__blocked-cell"
-          height={1}
-          key={`${cell.row},${cell.column}`}
-          width={1}
-          x={cell.column}
-          y={cell.row}
-        />
-      ))}
-
       <g aria-hidden="true" className="game-board__grid">
         {gridLines.map((position) => (
           <line
@@ -137,6 +127,32 @@ export function BoardSvg({
         ))}
       </g>
 
+      <defs>
+        <pattern
+          height={10 / 48}
+          id={blockedPatternId}
+          patternTransform="rotate(45)"
+          patternUnits="userSpaceOnUse"
+          width={10 / 48}
+        >
+          <path className="game-board__blocked-stripe" d={`M${5 / 48} 0V${10 / 48}`} />
+        </pattern>
+      </defs>
+      <g aria-hidden="true">
+        <path
+          className="game-board__blocked-cell"
+          d={board.blockedCells.map((cell) => `M${cell.column} ${cell.row}h1v1h-1Z`).join(' ')}
+        />
+        <rect
+          className="game-board__blocked-area"
+          fill={`url(#${blockedPatternId})`}
+          height={2}
+          width={2}
+          x={BOARD_SIZE / 2 - 1}
+          y={BOARD_SIZE / 2 - 1}
+        />
+      </g>
+
       <g aria-hidden="true" className="game-board__targets">
         {targets.map((target) => {
           const isActive = target.id === activeTargetId;
@@ -151,12 +167,9 @@ export function BoardSvg({
               transform={`translate(${target.position.column + 0.5} ${target.position.row + 0.5})`}
             >
               {isActive && (
-                <rect
+                <path
                   className="game-board__target-highlight"
-                  height={1}
-                  width={1}
-                  x={-0.5}
-                  y={-0.5}
+                  d="M-.2 -.4H-.4V-.2 M.2 -.4H.4V-.2 M.4 .2V.4H.2 M-.2 .4H-.4V.2"
                 />
               )}
               <TargetSymbol symbol={target.symbol} />

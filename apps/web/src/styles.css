@@ -271,7 +271,8 @@
   --color-board-grid: #263852;
   --color-board-boundary: #7c96b8;
   --color-board-wall: #a8bed8;
-  --color-board-blocked: #060d19;
+  --color-board-blocked: #080f1f;
+  --color-board-blocked-detail: #3a5272;
   --color-robot-red: #f45b69;
   --color-robot-blue: #4da3ff;
   --color-robot-green: #4dd4a0;
@@ -843,6 +844,17 @@ body {
   fill: var(--color-board-blocked);
 }
 
+.game-board__blocked-stripe {
+  fill: none;
+  stroke: var(--color-board-blocked-detail);
+  stroke-width: 0.0260417;
+}
+
+.game-board__blocked-area {
+  stroke: var(--color-board-blocked-detail);
+  stroke-width: 0.03125;
+}
+
 .game-board__grid line {
   stroke: var(--color-board-grid);
   stroke-width: 0.75px;
@@ -941,8 +953,11 @@ body {
 }
 
 .game-board__target-highlight {
-  fill: #fffffffa;
-  stroke: none;
+  fill: none;
+  stroke: #B8CCE3;
+  stroke-width: 0.0416667;
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
 }
 
 .game-board__walls line {

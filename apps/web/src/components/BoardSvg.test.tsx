@@ -10,7 +10,7 @@ import { BoardSvg } from './BoardSvg';
 import { TargetSymbol } from './TargetSymbol';
 
 function renderBoard(
-  activeTargetId: string = DEMO_GAME_STATE.target.id,
+  activeTargetId: string | null = DEMO_GAME_STATE.target.id,
   robots: RobotPositions = DEMO_GAME_STATE.robots,
 ) {
   return renderToStaticMarkup(
@@ -25,7 +25,7 @@ function renderBoard(
 }
 
 describe('board target rendering', () => {
-  test('renders every target and exactly one soft-fill hook for the active target', () => {
+  test('renders every target and exactly one corner-bracket marker for the active target', () => {
     const markup = renderBoard();
     expect(markup.match(/data-target-id=/g)).toHaveLength(17);
     expect(markup.match(/class="game-board__target-highlight"/g)).toHaveLength(1);
@@ -48,7 +48,7 @@ describe('board target rendering', () => {
     );
   });
 
-  test('fills the active cell behind its symbol and robots without covering walls', () => {
+  test('keeps four inset fifth-cell corners outside the symbol without filling the cell', () => {
     const markup = renderBoard(DEMO_GAME_STATE.target.id, {
       ...DEMO_GAME_STATE.robots,
       blue: DEMO_GAME_STATE.target.position,
@@ -56,7 +56,25 @@ describe('board target rendering', () => {
     expect(markup.indexOf('class="game-board__targets"')).toBeLessThan(
       markup.indexOf('class="game-board__robots"'),
     );
-    expect(markup).toContain('class="game-board__target-highlight" height="1" width="1" x="-0.5" y="-0.5"');
+    const marker = markup.match(/<path class="game-board__target-highlight" d="([^"]+)"/);
+    expect(marker).not.toBeNull();
+    const corners = marker![1].match(/M[^M]+/g)!;
+    expect(corners).toHaveLength(4);
+    for (const corner of corners) {
+      const [x, y, first, second] = corner.match(/-?(?:\d*\.\d+|\d+)/g)!.map(Number);
+      const horizontalFirst = corner.includes('H') && corner.indexOf('H') < corner.indexOf('V');
+      const bend = horizontalFirst ? [first, y] : [x, first];
+      const end = horizontalFirst ? [first, second] : [second, first];
+      expect(Math.hypot(bend[0] - x, bend[1] - y)).toBeCloseTo(0.2);
+      expect(Math.hypot(end[0] - bend[0], end[1] - bend[1])).toBeCloseTo(0.2);
+      for (const point of [[x, y], bend, end]) {
+        const outer = Math.max(...point.map(Math.abs));
+        expect(0.5 - outer).toBeCloseTo(0.1);
+        expect(outer + 1 / 48).toBeLessThan(0.5); // stroke stays inside the cell
+        expect(outer - 1 / 48).toBeGreaterThan(0.34); // outside the symbol's bounding square
+      }
+    }
+    expect(markup).not.toContain('<rect class="game-board__target-highlight"');
     const activeGroup = markup.slice(markup.indexOf('data-target-id="' + DEMO_GAME_STATE.target.id + '"'));
     expect(activeGroup.indexOf('game-board__target-highlight')).toBeLessThan(activeGroup.indexOf('class="target-symbol"'));
     expect(markup.indexOf('game-board__target-highlight')).toBeLessThan(markup.indexOf('class="game-board__walls"'));
@@ -64,6 +82,40 @@ describe('board target rendering', () => {
     expect(markup).toContain('class="game-board__robot-piece" r="0.34"');
     expect(markup.match(/data-target-id=/g)).toHaveLength(17);
   });
+
+  test('no active target has no brackets while all target artwork stays visible', () => {
+    const markup = renderBoard(null);
+    expect(markup).not.toContain('game-board__target-highlight');
+    expect(markup.match(/data-target-id=/g)).toHaveLength(17);
+    expect(markup.match(/class="target-symbol"/g)).toHaveLength(17);
+  });
+});
+
+test('the blocked center shares one stripe pattern and outer border above the grid', () => {
+  const markup = renderBoard();
+  const patternId = markup.match(/<pattern[^>]*id="([^"]+)"/)![1];
+  expect(markup).toContain('patternTransform="rotate(45)" patternUnits="userSpaceOnUse"');
+  expect(markup.match(/class="game-board__blocked-area"/g)).toHaveLength(1);
+  expect(markup).toContain(
+    `class="game-board__blocked-area" fill="url(#${patternId})" height="2" width="2" x="7" y="7"`,
+  );
+  const blockedFill = markup.match(/<path class="game-board__blocked-cell" d="([^"]+)"/)![1];
+  for (const cell of DEMO_GAME_STATE.board.blockedCells) {
+    expect(blockedFill).toContain(`M${cell.column} ${cell.row}h1v1h-1Z`);
+  }
+  expect(markup.indexOf('class="game-board__grid"')).toBeLessThan(markup.indexOf('class="game-board__blocked-cell"'));
+  expect(markup.indexOf('class="game-board__blocked-area"')).toBeLessThan(markup.indexOf('class="game-board__targets"'));
+  expect(markup).not.toContain('<animate');
+});
+
+test('boards rendered together keep their stripe pattern references independent', () => {
+  const markup = renderToStaticMarkup(<>
+    <BoardSvg activeTargetId={null} board={starterBoard.board} robots={starterBoard.initialRobots} targets={starterBoard.targets} />
+    <BoardSvg activeTargetId={null} board={starterBoard.board} robots={starterBoard.initialRobots} targets={starterBoard.targets} />
+  </>);
+  const ids = [...markup.matchAll(/<pattern[^>]*id="([^"]+)"/g)].map((match) => match[1]);
+  expect(new Set(ids).size).toBe(2);
+  for (const id of ids) expect(markup).toContain(`fill="url(#${id})"`);
 });
 
 test('the five symbols use distinct SVG artwork without external images', () => {

@@ -90,6 +90,47 @@ async function expectMatchColumns(page: Page, threeColumns: boolean) {
     expect(geometry.firstPanel.y).toBeGreaterThanOrEqual(geometry.board.bottom);
   }
   expect(geometry.board.width).toBeCloseTo(geometry.board.height, 0);
+  const marker = page.locator('.game-board__target-highlight');
+  await expect(marker).toHaveCount(1);
+  await expect(page.locator('.game-board__target--active .game-board__target-highlight')).toHaveCount(1);
+  const bracket = await marker.evaluate((element) => {
+    const path = element as SVGPathElement;
+    const box = path.getBBox();
+    const style = getComputedStyle(path);
+    return { tag: path.tagName, fill: style.fill, color: style.stroke, stroke: parseFloat(style.strokeWidth),
+      x: box.x, y: box.y, width: box.width, height: box.height, length: path.getTotalLength(),
+      scale: path.getScreenCTM()!.a, animation: style.animationName };
+  });
+  expect(bracket).toMatchObject({ tag: 'path', fill: 'none', color: 'rgb(184, 204, 227)', animation: 'none' });
+  expect(bracket.length).toBeCloseTo(1.6, 2);
+  expect(bracket.x - bracket.stroke / 2).toBeGreaterThan(-0.5);
+  expect(bracket.y - bracket.stroke / 2).toBeGreaterThan(-0.5);
+  expect(bracket.x + bracket.width + bracket.stroke / 2).toBeLessThan(0.5);
+  expect(bracket.y + bracket.height + bracket.stroke / 2).toBeLessThan(0.5);
+  expect(bracket.stroke * bracket.scale).toBeCloseTo(geometry.board.width / 16 / 24, 1);
+  await expect(page.locator('.game-board__surface')).toHaveCSS('fill', 'rgb(17, 31, 53)');
+  const blocked = page.locator('.game-board__blocked-area');
+  await expect(blocked).toHaveCount(1);
+  const blockedStyle = await blocked.evaluate((element) => {
+    const rect = element as SVGRectElement;
+    const pattern = rect.ownerSVGElement!.querySelector('pattern')!;
+    const stripe = pattern.querySelector('path')!;
+    const style = getComputedStyle(rect);
+    const box = rect.getBBox();
+    return { x: box.x, y: box.y, width: box.width, height: box.height,
+      color: style.stroke, stroke: parseFloat(style.strokeWidth), scale: rect.getScreenCTM()!.a,
+      stripeColor: getComputedStyle(stripe).stroke, stripeWidth: parseFloat(getComputedStyle(stripe).strokeWidth),
+      spacing: pattern.width.baseVal.value, rotation: pattern.getAttribute('patternTransform'),
+      fill: rect.getAttribute('fill'), patternId: pattern.id };
+  });
+  expect(blockedStyle).toMatchObject({ x: 7, y: 7, width: 2, height: 2,
+    color: 'rgb(58, 82, 114)', stripeColor: 'rgb(58, 82, 114)', rotation: 'rotate(45)' });
+  expect(blockedStyle.fill).toBe(`url(#${blockedStyle.patternId})`);
+  const cellSize = geometry.board.width / 16;
+  expect(blockedStyle.stroke * blockedStyle.scale).toBeCloseTo(cellSize * 1.5 / 48, 2);
+  expect(blockedStyle.stripeWidth * blockedStyle.scale).toBeCloseTo(cellSize * 1.25 / 48, 2);
+  expect(blockedStyle.spacing * blockedStyle.scale).toBeCloseTo(cellSize * 10 / 48, 2);
+  await expect(page.locator('.game-board__blocked-cell')).toHaveCSS('fill', 'rgb(8, 15, 31)');
 }
 
 test.use({ controlledTime: true, environmentKey: 'pwa-mobile' });
@@ -167,6 +208,7 @@ test('entry, live board, menus, attempt controls and results retain square geome
     await page.setViewportSize(size); await expectMobileLayout(page);
     await expectMatchSidebar(page, size.width >= 1024 && size.width / size.height >= 4 / 3);
     await expectMatchColumns(page, size.width >= 1280 && size.width / size.height >= 4 / 3);
+    if (size.width === 390 && size.height === 844) await page.screenshot({ path: info.outputPath('mobile-target-brackets.png') });
   }
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.getByRole('button', { name: `Copy room code ${code}` }).click();

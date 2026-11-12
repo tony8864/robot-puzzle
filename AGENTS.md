@@ -34,7 +34,7 @@ If these documents conflict, **product rules win**. Explain the conflict and ask
 ## Non-negotiable gameplay rules
 
 - Board: 16×16, selected from a catalog of original full-board designs, with a blocked central 2×2 area. The host may preview/shuffle boards in the lobby; the selected layout stays fixed for all 10 rounds.
-- Each board has 17 targets: star, crescent, triangle, and square in each robot color, plus a vortex wildcard. All targets remain visible; the approved soft cell fill marks the active target. The selected robot's thin white ring is a separate indicator.
+- Each board has 17 targets: star, crescent, triangle, and square in each robot color, plus a vortex wildcard. All targets remain visible; four inset corner brackets mark the active target without changing its cell background. The selected robot's thin white ring is a separate indicator.
 - Four sliding robots; walls, board edges, blocked cells, and other robots stop movement.
 - No-op directional inputs do not count as moves.
 - Ten rounds per match; each round reveals a target solvable from the **current official robot positions**.

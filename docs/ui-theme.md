@@ -27,17 +27,19 @@ The interface uses a minimal, flat, dark-blue visual style.
 | Grid lines | `#263852` | Thin, subtle separation between cells |
 | Outer boundary | `#7C96B8` | Thick, continuous border around the complete board |
 | Internal walls | `#A8BED8` | Thick, light wall segments between adjacent cells; current appearance confirmed by the owner |
-| Blocked central area | `#060D19` | Distinct fill for the blocked central 2×2 cells |
+| Blocked central area | `#080F1F` | Continuous fill for the blocked central 2×2 square |
+| Blocked-area detail | `#3A5272` | Subtle diagonal stripes and thin outer border |
 | Red robot | `#F45B69` | Filled circle for the red robot |
 | Blue robot | `#4DA3FF` | Filled circle for the blue robot |
 | Green robot | `#4DD4A0` | Filled circle for the green robot |
 | Yellow robot | `#FFD166` | Filled circle for the yellow robot |
 | Robot lettering | `#080F1F` | Dark letters inside robot pieces |
 | Wildcard target | `#E4EDF7` | Neutral vortex distinct from robot colors |
+| Active-target brackets | `#B8CCE3` | Four inset L-shaped corners; no cell fill |
 
 The board palette uses semantic CSS tokens. Keep palette changes in those tokens
 rather than repeating unrelated values throughout components. The active-target
-fill and selected-robot ring are separate treatments described below.
+brackets and selected-robot ring are separate treatments described below.
 
 ## 3. Board treatment
 
@@ -46,8 +48,11 @@ fill and selected-robot ring are separate treatments described below.
 - The outer boundary is thick, continuous, and distinguishable from the grid.
 - Internal walls are thick, light line segments placed precisely between adjacent
   cells.
-- The central 2×2 blocked area uses the blocked-area color and must be clearly
-  distinguishable from playable cells.
+- The central 2×2 blocked area is one continuous `#080F1F` square with no internal
+  grid lines. Use a continuous, confined 45-degree stripe pattern in `#3A5272`,
+  approximately 1.25px thick at 10px spacing on a 48px desktop cell. Its outer
+  border is approximately 1.5px in the same color, thinner and darker than walls.
+  Scale all dimensions proportionally; no glow, animation, icons or text.
 - The design remains flat: no gradient, texture, bevel, or simulated material
   is currently specified.
 
@@ -72,7 +77,7 @@ grid lines < outer boundary and internal walls
 - Robots remain flat unless a later approved theme revision introduces another
   treatment.
 - Indicate the selected robot with a **thin white ring** around its piece. This
-  selection cue is separate from the active target's cell fill.
+  selection cue is separate from the active target's corner brackets.
 
 Robot lettering uses `#080F1F`. Each robot has a radius of `0.34` SVG cell
 units (a diameter of `0.68` cell units), leaving the surrounding grid and walls
@@ -88,10 +93,12 @@ visible.
   images or an icon library. Colored targets use their corresponding robot color;
   the vortex uses neutral `#E4EDF7`.
 - Keep inactive targets slightly muted and the active target at full brightness.
-- Mark the active target with the approved **soft cell fill**, not a cell outline
-  or concentric target rings. Keep the fill visible around a robot occupying the
-  cell. It is not the selected robot's thin white ring.
-- Render target artwork and the active-cell fill behind robots, preserving wall
+- Mark only the active target with four inset L-shaped corner brackets in
+  `#B8CCE3`, retaining the normal `#111F35` background. Each arm is 20% of the cell
+  width, with a 10% inset and 1/24-cell stroke (about 5px and 2px respectively
+  on a 48px desktop cell). All dimensions scale with the board. Keep strokes
+  inside the cell and outside the target artwork; no fill/glow/pulse/animation.
+- Render target artwork and corner brackets behind robots, preserving wall
   legibility. Highlighting does not change target identity or completion rules.
 - Do not add gradients, textures, shadows, or three-dimensional effects.
 - Provide accessible descriptions of target color/symbol/position and which

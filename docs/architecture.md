@@ -220,7 +220,7 @@ package-sourced app version. Its page footer is hidden only for desktop matches;
 mobile retains the existing header and version footer.
 
 All targets remain visible, inactive ones muted; robot letters supplement color.
-The approved **soft active-target cell fill** differs from the selected robot's
+The active target's four inset SVG corner brackets differ from the selected robot's
 thin white ring. Internal walls remain light (`#A8BED8`), with a distinct outer
 boundary and subtle grid, as approved in [product requirements](product.md) and
 specified in [UI theme](ui-theme.md). These are the current visual requirements.

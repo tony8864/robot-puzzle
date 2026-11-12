@@ -100,6 +100,27 @@ the existing header. Wide match screens now use sidebar/board/phase-panel column
 from 1280px and minimum 4:3 aspect ratio. Intermediate widths keep the stacked
 layout. These presentation changes do not change gameplay rules.
 
+- [x] Blocked center appearance: continuous `#080F1F` 2×2 square, subtle 45-degree
+  `#3A5272` stripes and a thin matching outer border; hide internal grid lines.
+  Cell-relative sizing gives approximately 1.25px stripes, 10px spacing and a
+  1.5px border on 48px desktop cells. Active-target brackets and game rules unchanged.
+  Verification: 9 board tests, 2 responsive browser tests, Web/E2E typechecks,
+  production build and whitespace check passed; desktop/mobile screenshots reviewed.
+
+- [x] Active board target: replace the former white/soft cell fill with four
+  inset `#B8CCE3` corner brackets. Keep the normal dark-blue background and all
+  target/robot/wall geometry and interactions. Use cell-relative inset, arm and
+  stroke dimensions for desktop/mobile scaling. This approved visual change
+  supersedes the earlier fill approvals recorded below; archive records unchanged.
+  Refined to shorter 20%-cell arms, a 10%-cell inset and a 1/24-cell stroke
+  (approximately 5px inset and 2px stroke on the current 48px desktop cell).
+  Refinement verified: 7 board tests, 2 responsive browser tests, frontend
+  typecheck and whitespace check passed.
+  Verification: all 7 board-rendering tests and both focused responsive browser
+  tests passed; desktop/mobile screenshots reviewed. Web/E2E typechecks, web
+  build and whitespace check passed. Full web suite: 436 passed, with the existing
+  `AppShell.test.tsx` failure expecting `v0.1.0` instead of package `v1.0.0`.
+
 - [x] Desktop sidebar inner layout: round/phase beside online status, actual
   target shape/color, expanding copy button plus 44px actions button, and the
   package-sourced version below/right. Hide the page version only on desktop
