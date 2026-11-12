@@ -207,16 +207,22 @@ never reopens gameplay. Detailed timing, retention and race rationale: [lifecycl
 ## 7. Presentation and PWA
 
 Connected play uses three top-aligned columns from 1280px width at a minimum 4:3
-aspect ratio: 220px MatchSidebar, square board, and 300px phase/player panels,
-with 20px gaps, left-aligned with a 16px outer inset (or larger safe-area inset).
-Narrower layouts keep controls below the board; preview CSS is
+aspect ratio: 220px MatchSidebar (lobby header before play), square board, and
+300px phase/player panels (LobbyControlsPanel before play),
+with 20px gaps and a minimum 16px outer inset (or larger safe-area inset).
+The lobby centers the whole three-column group; the match remains left-aligned.
+The lobby uses compact side panels with stacked host buttons and a roster/control
+divider. Its square board uses the viewport height less the top/bottom outer
+insets, limited by available column width; both side panels follow the board height.
+Narrower layouts keep controls below the board and horizontal lobby host buttons; preview CSS is
 separate. Coordinates/discussion changes remain proposals. Round results use a modal;
 final match results use a full-screen view. Moves/Undo animate; Reset moves all
 robots directly together. Rebind/new attempts/missed versions snap. Animation
 never controls state; reduced motion applies.
 
 The desktop sidebar shows connection status, actual target artwork and the
-package-sourced app version. Its page footer is hidden only for desktop matches;
+package-sourced app version. The wide lobby shows that version beside its online
+count in the existing bottom row. The page footer is hidden for these desktop layouts;
 mobile retains the existing header and version footer.
 
 All targets remain visible, inactive ones muted; robot letters supplement color.

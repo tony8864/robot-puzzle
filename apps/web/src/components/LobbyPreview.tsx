@@ -4,7 +4,7 @@ import type { PuzzleBoard } from '@robot-puzzle/puzzles';
 import type { RobotId, RobotPositions } from '@robot-puzzle/game-engine';
 import { BoardSvg } from './BoardSvg';
 import { LobbyRoster } from './LobbyRoster';
-import { LobbyActions } from './LobbyActions';
+import { LobbyControlsPanel } from './LobbyControlsPanel';
 
 /** Shared lobby presentation; local and authenticated state owners remain separate. */
 export function LobbyPreview({ puzzle, players, hostSeatId, currentSeatId, header, headerAside, status,
@@ -46,12 +46,13 @@ export function LobbyPreview({ puzzle, players, hostSeatId, currentSeatId, heade
         selectedRobot={selectedRobot} onRobotSelect={onRobotSelect} />
     </div>
     <div className="board-preview__panels">
-      {roster ?? <LobbyRoster players={players} hostSeatId={hostSeatId} currentSeatId={currentSeatId} />}
-      {showActions && <LobbyActions isHost={currentSeatId === hostSeatId}
-        hostNickname={players.find((player) => player.seatId === hostSeatId)!.nickname}
+      {showActions ? <LobbyControlsPanel players={players} hostSeatId={hostSeatId} currentSeatId={currentSeatId}
         onShuffle={onShuffle} onStart={onStart} shuffleDisabled={shuffleDisabled}
-        startDisabled={startDisabled} shuffleLabel={shuffleLabel} startLabel={startLabel} />}
-      {panelFooter}
+        startDisabled={startDisabled} shuffleLabel={shuffleLabel} startLabel={startLabel}
+        roster={roster} footer={panelFooter} /> : <>
+        {roster ?? <LobbyRoster players={players} hostSeatId={hostSeatId} currentSeatId={currentSeatId} />}
+        {panelFooter}
+      </>}
     </div>
   </>;
 }

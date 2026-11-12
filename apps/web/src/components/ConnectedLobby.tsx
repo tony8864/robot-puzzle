@@ -90,7 +90,7 @@ export function ConnectedLobby({ entry, client, onTerminal, onLeave }: { readonl
   const selectRobot = (robotId: RobotId) => setSelection({ attemptId, robotId });
   const error = state.actionError && <p className="connected-lobby__error" role="alert">{state.actionError}</p>;
 
-  return <main className={`board-preview connected-lobby${match ? ' connected-lobby--match' : ''}`}>
+  return <main className={`board-preview connected-lobby ${match ? 'connected-lobby--match' : 'connected-lobby--setup'}`}>
     <div className="connected-lobby__content">
       <LobbyPreview puzzle={state.room.puzzle} players={state.room.players} hostSeatId={state.room.hostSeatId}
         currentSeatId={entry.seatId}

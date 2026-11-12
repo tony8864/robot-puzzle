@@ -63,6 +63,114 @@ async function expectMatchSidebar(page: Page, desktop: boolean) {
   }
 }
 
+async function expectLobbyLayout(page: Page) {
+  const size = page.viewportSize()!;
+  const wide = size.width >= 1280 && size.width / size.height >= 4 / 3;
+  await page.evaluate(() => scrollTo(0, 0));
+  const layout = await page.locator('.connected-lobby--setup').evaluate((element) => {
+    const bounds = (selector: string) => {
+      const rect = element.querySelector(selector)!.getBoundingClientRect();
+      return { x: rect.x, y: rect.y, width: rect.width, bottom: rect.bottom, right: rect.right };
+    };
+    const panel = element.querySelector('.lobby-controls-panel')!;
+    const style = getComputedStyle(panel);
+    const buttons = Array.from(panel.querySelectorAll('.lobby-actions__button')).map((button) => {
+      const rect = button.getBoundingClientRect();
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height, bottom: rect.bottom };
+    });
+    const controls = panel.querySelector('.lobby-actions, .lobby-waiting')!;
+    return { header: bounds('.lobby-header'), board: bounds('.board-preview__canvas'),
+      panel: bounds('.lobby-controls-panel'), display: style.display, background: style.backgroundColor,
+      border: style.borderTopWidth, borderColor: style.borderTopColor, radius: style.borderRadius,
+      padding: style.paddingTop, headerBackground: getComputedStyle(element.querySelector('.lobby-header')!).backgroundColor,
+      divider: getComputedStyle(controls).borderTopWidth, buttons,
+      roster: bounds('.lobby-roster'), lastBottom: panel.lastElementChild!.getBoundingClientRect().bottom,
+      notice: panel.querySelector('.connected-lobby__notice') ? bounds('.lobby-controls-panel .connected-lobby__notice') : null };
+  });
+  const header = page.locator('.lobby-header');
+  const sidebar = await header.evaluate((element) => {
+    const bounds = (selector: string) => {
+      const rect = element.querySelector(selector)!.getBoundingClientRect();
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height, right: rect.right };
+    };
+    const waiting = element.querySelector('.lobby-header__waiting')!;
+    return { copy: bounds('.room-code__button'), more: bounds('.match-actions__toggle'),
+      waiting: bounds('.lobby-header__waiting'), connection: bounds('.lobby-header__connection'),
+      version: bounds('.lobby-header__version'), usersIcon: bounds('.lobby-header__users-icon'),
+      dotColor: getComputedStyle(waiting, '::before').backgroundColor,
+      dotContent: getComputedStyle(waiting, '::before').content };
+  });
+  const usersIcon = header.locator('.lobby-header__users-icon');
+  const lobbyVersion = header.locator('.lobby-header__version');
+  if (wide) {
+    expect(layout.header.width).toBe(220);
+    expect(layout.panel.width).toBe(300);
+    expect(layout.board.y).toBeCloseTo(layout.header.y, 0);
+    expect(layout.header.bottom).toBeCloseTo(layout.board.bottom, 0);
+    expect(layout.panel.y).toBeCloseTo(layout.board.y, 0);
+    expect(layout.panel.bottom).toBeCloseTo(layout.board.bottom, 0);
+    expect(layout.roster.y).toBeCloseTo(layout.panel.y + 13, 0);
+    expect(layout.lastBottom).toBeCloseTo(layout.panel.bottom - 13, 0);
+    expect(layout.board.x - layout.header.right).toBeCloseTo(20, 0);
+    expect(layout.panel.x - layout.board.right).toBeCloseTo(20, 0);
+    expect(layout.header.x).toBeCloseTo(size.width - layout.panel.right, 0);
+    expect(layout.board.bottom).toBeLessThanOrEqual(size.height);
+    const expectedBoardSize = Math.min(size.height - 32, size.width - 32 - 560);
+    expect(layout.board.width).toBeCloseTo(expectedBoardSize, 0);
+    expect(layout.board.y).toBeCloseTo(16, 0);
+    if (size.height - 32 <= size.width - 32 - 560) {
+      expect(size.height - layout.board.bottom).toBeCloseTo(layout.board.y, 0);
+    }
+    expect(layout).toMatchObject({ display: 'flex', background: 'rgb(17, 31, 53)', border: '1px',
+      borderColor: 'rgb(38, 56, 82)', radius: '10px', padding: '12px',
+      headerBackground: 'rgb(17, 31, 53)', divider: '1px' });
+    await expect(header.locator('h1')).toHaveCSS('color', 'rgb(255, 255, 255)');
+    await expect(header.locator('.lobby-header__board')).toHaveCSS('margin-top', '4px');
+    await expect(header.locator('.lobby-header__waiting')).toHaveCSS('color', 'rgb(168, 190, 216)');
+    await expect(header.locator('.lobby-header__connection')).toHaveCSS('font-size', '12px');
+    await expect(usersIcon).toBeVisible();
+    await expect(lobbyVersion).toBeVisible();
+    await expect(lobbyVersion).toHaveText(await page.locator('.app-version').innerText());
+    await expect(lobbyVersion).toHaveCSS('font-size', '11px');
+    await expect(lobbyVersion).toHaveCSS('color', 'rgb(112, 131, 155)');
+    await expect(page.locator('.app-version')).toBeHidden();
+    expect(sidebar.version.x).toBeCloseTo(layout.header.x + 13, 0);
+    expect(sidebar.version.right).toBeLessThan(sidebar.usersIcon.x);
+    expect(sidebar.version.y + sidebar.version.height / 2).toBeCloseTo(sidebar.connection.y + sidebar.connection.height / 2, 0);
+    expect(sidebar.dotColor).toBe('rgb(77, 212, 160)');
+    expect(sidebar.more.width).toBe(44); expect(sidebar.more.height).toBe(44);
+    expect(sidebar.copy.y).toBe(sidebar.more.y);
+    expect(sidebar.more.x - sidebar.copy.right).toBeCloseTo(8, 0);
+    expect(sidebar.more.right).toBeCloseTo(layout.header.right - 13, 0);
+    expect(sidebar.copy.x).toBeCloseTo(layout.header.x + 13, 0);
+    expect(sidebar.connection.y).toBeGreaterThan(sidebar.waiting.y);
+    expect(sidebar.waiting.y - sidebar.copy.y - sidebar.copy.height).toBeCloseTo(12, 0);
+    expect(sidebar.connection.y + sidebar.connection.height).toBeCloseTo(layout.header.bottom - 13, 0);
+    expect(sidebar.connection.right).toBeCloseTo(sidebar.more.right, 0);
+    if (layout.buttons.length) {
+      const [shuffle, start] = layout.buttons;
+      expect(start.y - shuffle.bottom).toBeCloseTo(8, 0);
+      expect(shuffle.x).toBe(start.x);
+      expect(shuffle.width).toBe(layout.panel.width - 26);
+      expect(start.width).toBe(shuffle.width);
+      expect(shuffle.height).toBe(48); expect(start.height).toBe(48);
+      if (layout.notice) expect(layout.notice.y - start.bottom).toBeCloseTo(12, 0);
+    }
+  } else {
+    await expect(usersIcon).toBeHidden();
+    await expect(lobbyVersion).toBeHidden();
+    await expect(page.locator('.app-version')).toBeVisible();
+    expect(sidebar.dotContent).toBe('none');
+    expect(sidebar.waiting.y).toBeCloseTo(sidebar.connection.y, 0);
+    expect(layout.display).toBe('contents');
+    expect(layout.header.bottom).toBeLessThanOrEqual(layout.board.y);
+    if (layout.buttons.length) {
+      expect(layout.buttons[0].y).toBe(layout.buttons[1].y);
+      expect(layout.buttons[0].y).toBeGreaterThanOrEqual(layout.board.bottom);
+    }
+  }
+}
+
 async function expectMatchColumns(page: Page, threeColumns: boolean) {
   const geometry = await page.locator('.connected-lobby__content').evaluate((element) => {
     const bounds = (selector: string) => {
@@ -183,17 +291,37 @@ test('entry, live board, menus, attempt controls and results retain square geome
   await page.screenshot({ path: info.outputPath('short-entry.png') });
   const host = await recoveryTransport(page); const guest = await recoveryTransport(guestPage);
   const code = await createRoom(page, 'Maria');
+  const lobbySizes = [...layoutSizes, { width: 1279, height: 800 }, { width: 1280, height: 1200 },
+    { width: 1280, height: 400 }, { width: 1366, height: 768 }, { width: 1920, height: 1080 }];
+  for (const size of lobbySizes) {
+    await page.setViewportSize(size); await expectMobileLayout(page); await expectLobbyLayout(page);
+    await expect(page.getByRole('button', { name: 'Start Match', exact: true })).toBeDisabled();
+    await expect(page.getByText('At least two players are needed to start.', { exact: true })).toHaveCSS('text-align', 'center');
+  }
   await guestPage.goto(`/room/${code}`);
   await guestPage.getByLabel('YOUR NICKNAME').fill('Alex');
   await guestPage.getByRole('button', { name: 'Join Room', exact: true }).click();
   await expect(guestPage.getByRole('heading', { name: 'Match setup', exact: true })).toBeVisible();
-  for (const size of layoutSizes) {
-    await page.setViewportSize(size); await expectMobileLayout(page);
+  await expect(page.locator('.lobby-roster__heading')).toContainText('2 / 6');
+  await expect(page.getByRole('button', { name: 'Start Match', exact: true })).toBeEnabled();
+  await guestPage.setViewportSize({ width: 1366, height: 768 });
+  await expectLobbyLayout(guestPage);
+  await expect(guestPage.getByRole('button', { name: 'Start Match', exact: true })).toHaveCount(0);
+  await expect(guestPage.getByText('Waiting for Maria to start the match.', { exact: true })).toBeVisible();
+  for (const size of lobbySizes) {
+    await page.setViewportSize(size); await expectMobileLayout(page); await expectLobbyLayout(page);
     await page.getByRole('button', { name: 'More actions', exact: true }).click();
     const menu = (await page.locator('.match-actions__panel').boundingBox())!;
     expect(menu.x).toBeGreaterThanOrEqual(0); expect(menu.x + menu.width).toBeLessThanOrEqual(size.width);
     await page.keyboard.press('Escape');
   }
+  await page.screenshot({ path: info.outputPath('desktop-lobby-panels.png') });
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.getByRole('button', { name: `Copy room code ${code}` }).click();
+  await expect(page.getByText('Room code copied.', { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(code);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: info.outputPath('mobile-lobby-panels.png') });
   await page.getByRole('button', { name: 'More actions', exact: true }).click();
   await page.getByRole('button', { name: 'End Room', exact: true }).click();
   const end = page.getByRole('dialog');

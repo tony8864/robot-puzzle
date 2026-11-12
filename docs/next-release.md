@@ -100,6 +100,72 @@ the existing header. Wide match screens now use sidebar/board/phase-panel column
 from 1280px and minimum 4:3 aspect ratio. Intermediate widths keep the stacked
 layout. These presentation changes do not change gameplay rules.
 
+- [x] Desktop lobby centering: center the whole three-column group in the available
+  width, distributing leftover space on both sides. Board size, panel widths,
+  gaps, match alignment and mobile layout unchanged; supersedes lobby left alignment.
+  Verification: both responsive browser tests and whitespace check passed;
+  equal outer margins asserted across desktop sizes and screenshot reviewed.
+
+- [x] Desktop lobby controls height: stretch to the board's grid row; keep the
+  roster at the top and use a flex auto margin to push host controls to the bottom.
+  Keep the start requirement directly below Start Match. Preserve styling and
+  mobile layout; allow panel scrolling only if its contents cannot fit.
+  Verification: 2 responsive browser tests, Web/E2E typechecks (web via build),
+  production build and whitespace check passed; desktop screenshot reviewed.
+  Checked panel/board bottom alignment, roster position, bottom controls and
+  start-requirement spacing across desktop sizes, plus unchanged mobile buttons.
+
+- [x] Desktop lobby board sizing: use viewport height less the existing top/bottom
+  16px (or larger safe-area) insets instead of reserving 8rem and capping at 768px.
+  Remove the lobby-only overall width cap so the square board can grow on wider
+  screens. Available width still limits its size to avoid horizontal scrolling;
+  the sidebar follows its height. Match and mobile sizing unchanged.
+  Verification: 2 responsive browser tests, Web/E2E typechecks (web via build),
+  production build and whitespace check passed; desktop screenshot reviewed.
+  Checked equal vertical gaps when height-limited and safe sizing when width-limited.
+
+- [x] Desktop lobby sidebar height: stretch to the board's grid-row height, keeping
+  setup/actions/status at the top and version/count at the bottom with empty space
+  between. No fixed height; size containment on the controls wrapper lets the
+  board determine that row even if the controls extend below it. Mobile unchanged.
+  Verification: 55 existing lobby tests, 2 responsive browser tests, Web/E2E
+  typechecks and whitespace check passed; desktop screenshot reviewed.
+
+- [x] Desktop lobby version: package-sourced version at the left of the existing
+  online-count row, 11px muted text; preserve the users icon/count at the right.
+  Hide the duplicate page footer only at the wide lobby breakpoint; mobile
+  header/footer and panel geometry unchanged.
+  Verification: 55 relevant component tests, 5 lobby/responsive browser tests,
+  Web/E2E typechecks, production build and whitespace check passed. Verified
+  package-sourced text, same-row alignment, desktop footer hiding and mobile footer preservation.
+
+- [x] Desktop lobby sidebar inner polish: compact white heading and muted board
+  name, expanding room copy button beside 44px More Actions, inline green lobby
+  status dot and a right-aligned live count with a decorative users icon. Scope
+  these refinements to the existing wide-lobby breakpoint; outer panel geometry,
+  mobile header, recovery, menus and host permissions remain unchanged.
+  Verification: 62 relevant component tests, 5 lobby/responsive browser tests,
+  Web/E2E typechecks, production build and whitespace check passed. Desktop/mobile
+  screenshots reviewed; copy, menu, live counts and mobile-hidden decorations checked.
+
+- [x] Wide lobby layout: reuse the match layout's 1280px / minimum 4:3 breakpoint,
+  220px left header, square board, 300px right controls and 20px gaps. Compact
+  themed side panels; roster/control divider, stacked 48px host buttons and
+  centered start requirement. Constrain the board by viewport height, including
+  short desktop windows. Below the breakpoint, preserve the existing lobby and
+  horizontal buttons. The controls wrapper uses `display: contents` there.
+  Verification: 83 existing component/start-flow tests, 5 lobby/responsive browser
+  tests, Web/E2E typechecks, production build and whitespace check passed.
+  Reviewed desktop/mobile screenshots; checked one/two-player host eligibility,
+  guest waiting, menus, breakpoint boundaries and short-desktop board visibility.
+
+- [x] Lobby controls extraction: `LobbyControlsPanel` reuses `LobbyRoster` /
+  `PlayerRoster` and `LobbyActions`, including the existing start-requirement
+  footer. No new DOM wrapper or styling; permissions, eligibility, messages and
+  live state remain with their existing owners. Lobby layout remains unchanged.
+  Verification: 83 existing component/start-flow tests, 2 responsive browser
+  tests, frontend typecheck and whitespace check passed.
+
 - [x] Blocked center appearance: continuous `#080F1F` 2×2 square, subtle 45-degree
   `#3A5272` stripes and a thin matching outer border; hide internal grid lines.
   Cell-relative sizing gives approximately 1.25px stripes, 10px spacing and a
