@@ -106,7 +106,7 @@ visible.
   narrow phone widths.
 - Use a strong continuous outer boundary and cell-edge wall segments; walls
   must never be represented as filled cells.
-- In connected play, keep controls below the board, preserve accessible touch
+- On phones, keep controls below the board, preserve accessible touch
   targets and clear focus/disabled/connection feedback, and respect reduced motion.
 - Movement animation presents confirmed state; Reset moves all robots directly
   together, while reconnect/new attempts snap. See

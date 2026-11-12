@@ -9,7 +9,7 @@ import { LobbyActions } from './LobbyActions';
 /** Shared lobby presentation; local and authenticated state owners remain separate. */
 export function LobbyPreview({ puzzle, players, hostSeatId, currentSeatId, header, headerAside, status,
   onShuffle, onStart, shuffleDisabled, startDisabled, shuffleLabel, startLabel, showActions = true, heading = 'Match setup',
-  robots = puzzle.initialRobots, activeTargetId = null, eyebrow, detail = puzzle.name, roster, selectedRobot, onRobotSelect, boardKey }: {
+  robots = puzzle.initialRobots, activeTargetId = null, eyebrow, detail = puzzle.name, roster, panelFooter, selectedRobot, onRobotSelect, boardKey }: {
   readonly puzzle: PuzzleBoard;
   readonly players: readonly MatchPlayer[];
   readonly hostSeatId: string;
@@ -30,6 +30,7 @@ export function LobbyPreview({ puzzle, players, hostSeatId, currentSeatId, heade
   readonly eyebrow?: string;
   readonly detail?: string;
   readonly roster?: ReactNode;
+  readonly panelFooter?: ReactNode;
   readonly selectedRobot?: RobotId | null;
   readonly onRobotSelect?: (robotId: RobotId) => void;
   readonly boardKey?: number;
@@ -44,10 +45,13 @@ export function LobbyPreview({ puzzle, players, hostSeatId, currentSeatId, heade
       <BoardSvg key={boardKey} board={puzzle.board} robots={robots} targets={puzzle.targets} activeTargetId={activeTargetId}
         selectedRobot={selectedRobot} onRobotSelect={onRobotSelect} />
     </div>
-    {roster ?? <LobbyRoster players={players} hostSeatId={hostSeatId} currentSeatId={currentSeatId} />}
-    {showActions && <LobbyActions isHost={currentSeatId === hostSeatId}
-      hostNickname={players.find((player) => player.seatId === hostSeatId)!.nickname}
-      onShuffle={onShuffle} onStart={onStart} shuffleDisabled={shuffleDisabled}
-      startDisabled={startDisabled} shuffleLabel={shuffleLabel} startLabel={startLabel} />}
+    <div className="board-preview__panels">
+      {roster ?? <LobbyRoster players={players} hostSeatId={hostSeatId} currentSeatId={currentSeatId} />}
+      {showActions && <LobbyActions isHost={currentSeatId === hostSeatId}
+        hostNickname={players.find((player) => player.seatId === hostSeatId)!.nickname}
+        onShuffle={onShuffle} onStart={onStart} shuffleDisabled={shuffleDisabled}
+        startDisabled={startDisabled} shuffleLabel={shuffleLabel} startLabel={startLabel} />}
+      {panelFooter}
+    </div>
   </>;
 }

@@ -94,8 +94,63 @@
 
 ## Current focus
 
-Documentation cleanup precedes release additions. No additions or new gameplay
-rules are approved for implementation yet.
+Documentation cleanup is complete. `MatchSidebar` now has an approved compact
+desktop panel at minimum 1024px width and minimum 4:3 aspect ratio. Mobile keeps
+the existing header. Wide match screens now use sidebar/board/phase-panel columns
+from 1280px and minimum 4:3 aspect ratio. Intermediate widths keep the stacked
+layout. These presentation changes do not change gameplay rules.
+
+- [x] Desktop sidebar inner layout: round/phase beside online status, actual
+  target shape/color, expanding copy button plus 44px actions button, and the
+  package-sourced version below/right. Hide the page version only on desktop
+  matches; preserve mobile header/footer and outer panel geometry. Green status
+  dot requires an actual connected client; recovery remains available.
+  Verification: 2/2 focused browser tests passed (desktop/mobile versions,
+  actual target icons, action spacing, phase timer, offline/rebind and layout
+  regressions). Nine sidebar tests passed; full frontend run had 435 passes and
+  the unchanged AppShell v0.1.0/v1.0.0 assertion failure. Web/E2E typechecks,
+  production build and `git diff --check` passed; desktop screenshots reviewed.
+
+- [x] Desktop outer-spacing adjustment: left-align the existing three columns
+  with 16px outer padding, respecting safe-area insets. Preserve board-size limits,
+  column widths, 20px gaps and narrower layouts. This supersedes centering below.
+  Keep desktop action buttons spread across their row so the dropdown does not
+  clip the left viewport edge. Verification: 2/2 focused browser tests passed,
+  including 16px left/top inset, menu/copy behavior and narrow-layout regressions;
+  web/E2E typechecks, production build and `git diff --check` passed. Screenshot
+  reviewed; unit suite not rerun for this spacing-only follow-up.
+
+- [x] Wide match layout (initial centered version): top-aligned 220px sidebar / square board /
+  300px phase/player panels, with 20px gaps. Board sizing stays prominent and
+  bounded; below 1280px or in portrait the previous layout remains. Reuse existing
+  components with a display-contents wrapper on narrow screens; keep recovery,
+  preparation and retry feedback with the right-side panels. No backend/gameplay
+  changes or board/control/player component restyling.
+  Verification: focused browser tests 2/2 passed, checking top alignment, column
+  widths/gaps, board prominence/square geometry, centered layout, no overflow,
+  phone/portrait-tablet fallback and 1279/1280px boundary in Thinking/Bidding/
+  Demonstration. Desktop screenshot reviewed. Web/E2E typechecks and production
+  build passed; frontend tests 430 passed with the unchanged AppShell version
+  failure. `git diff --check` passed. Physical Mac/iPhone checks remain unverified.
+
+- [x] Desktop MatchSidebar panel: 220px width, theme background/border, 10px radius,
+  12px padding/gaps; phase/timer, board/target, copy/menu row, online count stacked.
+  One component/state tree; no board or other panel styling changes. Breakpoint
+  keeps phone and portrait-tablet presentation intact.
+  Verification: both focused PWA/mobile browser tests passed, including panel
+  geometry/order, 1023/1024px boundary, phones/tablets, 1280/1366/1440px desktop,
+  bidding timer placement, copy and menu. Desktop screenshot reviewed. Web/E2E
+  typechecks and production build passed. Frontend tests: 430 passed, the same
+  pre-existing AppShell version assertion failed. No physical Mac/iPhone check.
+
+- [x] Reuse `ActiveMatchHeader` as `MatchSidebar` and update its connected-screen
+  reference and existing tests. Preserve markup, CSS classes, props and callbacks;
+  no board/panels/controls/player-list, backend or dependency changes.
+  Verification: source comparison confirms only component-name/import changes;
+  frontend typecheck, production build and `git diff --check` passed. Frontend
+  tests: 430 passed, one pre-existing AppShell version-label failure (expects
+  v0.1.0; package is v1.0.0). MatchSidebar's four tests and all 52 connected-screen
+  tests passed. The unrelated version assertion remains unchanged.
 
 - [x] Deployment-status cleanup: record the 2026-11-11 public-root response,
   distinguish source tag from deployed version, preserve historical preparation

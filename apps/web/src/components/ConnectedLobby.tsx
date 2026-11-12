@@ -11,7 +11,7 @@ import { ConnectedBiddingCountdown } from './ConnectedBiddingCountdown';
 import { DemonstrationControls } from './DemonstrationControls';
 import { RoundResultModal } from './RoundResultModal';
 import { MatchResults } from './MatchResults';
-import { ActiveMatchHeader } from './ActiveMatchHeader';
+import { MatchSidebar } from './MatchSidebar';
 import { LobbyHeader } from './LobbyHeader';
 import { MatchActions } from './MatchActions';
 import { LeaveRoomDialog } from './LeaveRoomDialog';
@@ -90,15 +90,16 @@ export function ConnectedLobby({ entry, client, onTerminal, onLeave }: { readonl
   const selectRobot = (robotId: RobotId) => setSelection({ attemptId, robotId });
   const error = state.actionError && <p className="connected-lobby__error" role="alert">{state.actionError}</p>;
 
-  return <main className="board-preview connected-lobby">
+  return <main className={`board-preview connected-lobby${match ? ' connected-lobby--match' : ''}`}>
     <div className="connected-lobby__content">
       <LobbyPreview puzzle={state.room.puzzle} players={state.room.players} hostSeatId={state.room.hostSeatId}
         currentSeatId={entry.seatId}
-        header={match ? <ActiveMatchHeader
+        header={match ? <MatchSidebar
           round={'round' in match ? match.round.number : match.completedRounds + 1}
           phase={preparing ? 'Preparing round' : thinking ? 'Thinking' : bidding ? 'Bidding' : demonstrating ? 'Demonstration' : 'Round complete'}
           boardName={state.room.puzzle.name} targetLabel={targetLabel}
           targetColor={target?.kind === 'colored' ? `var(--color-robot-${target.robotId})` : undefined}
+          targetSymbol={target?.symbol} isConnected={connected}
           roomCode={state.room.roomCode}
           connectionLabel={connected ? `${state.room.players.filter((player) => player.connected).length} online` : state.message}
           recovery={!connected ? status : undefined}
@@ -141,20 +142,22 @@ export function ConnectedLobby({ entry, client, onTerminal, onLeave }: { readonl
         startDisabled={!connected || state.room.players.length < 2 || (unresolved && state.start !== 'retry')}
         shuffleDisabled={!connected || (unresolved && state.shuffle !== 'retry')}
         startLabel={state.start === 'pending' ? 'Starting…' : state.start === 'retry' ? 'Retry Start' : 'Start Match'}
-        shuffleLabel={state.shuffle === 'pending' ? 'Shuffling…' : state.shuffle === 'retry' ? 'Retry Shuffle' : 'Shuffle Board'} />
-      {!roundResult && error}
-      {preparing ? <section className="connected-lobby__notice" aria-label="Match preparation">
-        <p role="status">{preparation?.status === 'working' ? 'Preparing a verified target…'
-          : preparation?.status === 'deferred' ? 'No target was verified within the search limit. The board and robot positions are unchanged.'
-          : preparation?.status === 'unavailable' ? 'No eligible target is available. Preparation cannot continue from this position.'
-          : 'Target preparation could not be completed. The board and robot positions are unchanged.'}</p>
-        {preparation?.retry && (preparation.status === 'deferred' || preparation.status === 'error') && (isHost ? <>
-          <button type="button" className="room-code__copy" disabled={!connected || !state.canRetryPreparation || unresolved}
-            onClick={flow.retryPreparation}>{state.preparation === 'pending' ? 'Retrying preparation…' : 'Retry preparation'}</button>
-          {!state.canRetryPreparation && connected && <p>Retry will be available shortly.</p>}
-        </> : <p>Waiting for {state.room.players.find((player) => player.seatId === state.room.hostSeatId)?.nickname} to retry preparation.</p>)}
-      </section> : state.room.status === 'lobby' && state.room.players.length < 2 && <p className="connected-lobby__notice">At least two players are needed to start.</p>}
-      {!roundResult && pendingRetry}
+        shuffleLabel={state.shuffle === 'pending' ? 'Shuffling…' : state.shuffle === 'retry' ? 'Retry Shuffle' : 'Shuffle Board'}
+        panelFooter={<>
+          {!roundResult && error}
+          {preparing ? <section className="connected-lobby__notice" aria-label="Match preparation">
+            <p role="status">{preparation?.status === 'working' ? 'Preparing a verified target…'
+              : preparation?.status === 'deferred' ? 'No target was verified within the search limit. The board and robot positions are unchanged.'
+              : preparation?.status === 'unavailable' ? 'No eligible target is available. Preparation cannot continue from this position.'
+              : 'Target preparation could not be completed. The board and robot positions are unchanged.'}</p>
+            {preparation?.retry && (preparation.status === 'deferred' || preparation.status === 'error') && (isHost ? <>
+              <button type="button" className="room-code__copy" disabled={!connected || !state.canRetryPreparation || unresolved}
+                onClick={flow.retryPreparation}>{state.preparation === 'pending' ? 'Retrying preparation…' : 'Retry preparation'}</button>
+              {!state.canRetryPreparation && connected && <p>Retry will be available shortly.</p>}
+            </> : <p>Waiting for {state.room.players.find((player) => player.seatId === state.room.hostSeatId)?.nickname} to retry preparation.</p>)}
+          </section> : state.room.status === 'lobby' && state.room.players.length < 2 && <p className="connected-lobby__notice">At least two players are needed to start.</p>}
+          {!roundResult && pendingRetry}
+        </>} />
       {match?.phase === 'round-result' && <RoundResultModal key={`${match.matchId}:${match.round.number}`}
         match={{ round: match.round, outcome: match.outcome, players: state.room.players }}
         isHost={isHost} hostName={state.room.players.find((player) => player.seatId === state.room.hostSeatId)!.nickname}

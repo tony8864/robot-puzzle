@@ -1,17 +1,18 @@
 import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
-import { ActiveMatchHeader } from './ActiveMatchHeader';
+import { MatchSidebar } from './MatchSidebar';
 
 const props = { round: 2, phase: 'Thinking', boardName: 'Switchback', targetLabel: 'Green crescent',
   targetColor: 'var(--color-robot-green)', roomCode: 'V9KQH5', connectionLabel: '2 online' };
 
-test('compact header puts phase and code/actions first, then one-line target and presence', () => {
+test('mobile header keeps phase and code/actions first, then inline board/target and presence', () => {
   const skip = vi.fn();
-  const markup = renderToStaticMarkup(<ActiveMatchHeader {...props} onSkip={skip} />);
+  const markup = renderToStaticMarkup(<MatchSidebar {...props} onSkip={skip} />);
   expect(markup).toContain('ROUND 2 / 10');
   expect(markup).toContain('<h1>Thinking</h1>');
-  expect(markup).toContain('Switchback · <span style="color:var(--color-robot-green)">Green crescent</span>');
+  expect(markup).toContain('<span>Switchback</span><span class="active-match-header__target-separator"> · </span>');
+  expect(markup).toContain('class="active-match-header__target" style="color:var(--color-robot-green)">Green crescent</span>');
   expect(markup).toContain('title="Switchback · Green crescent"');
   expect(markup).toContain('aria-label="Copy room code V9KQH5"');
   expect(markup).toContain('aria-label="More actions" aria-expanded="false"');
@@ -24,20 +25,31 @@ test('compact header puts phase and code/actions first, then one-line target and
   expect(skip).not.toHaveBeenCalled();
 });
 
+test.each(['star', 'crescent', 'triangle', 'square', 'vortex'] as const)('renders supplied %s artwork and package version without inventing connection status', (symbol) => {
+  const markup = renderToStaticMarkup(<MatchSidebar {...props} targetSymbol={symbol} isConnected />);
+  expect(markup).toContain(`data-symbol="${symbol}"`);
+  expect(markup).toContain('class="active-match-header__status-dot" aria-hidden="true"');
+  const { version } = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
+  expect(markup).toContain(`aria-label="App version v${version}">v${version}</span>`);
+  const offline = renderToStaticMarkup(<MatchSidebar {...props} connectionLabel="Disconnected." />);
+  expect(offline).not.toContain('active-match-header__status-dot');
+  expect(offline).not.toContain('active-match-header__target-icon');
+});
+
 test('no permitted actions invents no leave/skip behavior; pending skip stays disabled', () => {
-  const empty = renderToStaticMarkup(<ActiveMatchHeader {...props} targetLabel={null} />);
+  const empty = renderToStaticMarkup(<MatchSidebar {...props} targetLabel={null} />);
   expect(empty).not.toContain('More actions');
   expect(empty).not.toContain('match-actions__panel');
   expect(empty).not.toContain('No actions available.');
   expect(empty).not.toContain('Skip Round');
   expect(empty).not.toContain('Switchback ·');
-  const pending = renderToStaticMarkup(<ActiveMatchHeader {...props} onSkip={vi.fn()} skipDisabled />);
+  const pending = renderToStaticMarkup(<MatchSidebar {...props} onSkip={vi.fn()} skipDisabled />);
   expect(pending).toMatch(/<button type="button" disabled=""><svg.*?<\/svg>Skip Round<\/button>/);
   expect(pending).toContain('class="match-actions__skip-icon" width="16" height="16"');
 });
 
 test('countdown sits beside the phase without a separate row and recovery stays accessible', () => {
-  const markup = renderToStaticMarkup(<ActiveMatchHeader {...props} phase="Bidding" connectionLabel="Disconnected."
+  const markup = renderToStaticMarkup(<MatchSidebar {...props} phase="Bidding" connectionLabel="Disconnected."
     countdown={<strong role="timer">0:42</strong>} recovery={<button>Reconnect</button>} />);
   expect(markup).toContain('class="active-match-header__phase"><h1>Bidding</h1><strong role="timer">0:42</strong></div>');
   expect(markup.indexOf('role="timer"')).toBeLessThan(markup.indexOf('active-match-header__bottom'));
@@ -48,7 +60,7 @@ test('countdown sits beside the phase without a separate row and recovery stays 
 
 test('header sizing is scoped, keeps 44px actions and truncates detail without changing board sizing', () => {
   const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
-  const block = (selector: string) => css.slice(css.indexOf(`${selector} {`)).split('}')[0];
+  const block = (selector: string) => css.slice(css.indexOf(`\n${selector} {`) + 1).split('}')[0];
   expect(block('.active-match-header')).toContain('gap: 8px');
   expect(block('.active-match-header__detail')).toContain('min-width: 0');
   expect(block('.active-match-header__detail')).toContain('white-space: nowrap');
