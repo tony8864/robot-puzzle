@@ -226,7 +226,8 @@ async function expectMatchColumns(page: Page, threeColumns: boolean) {
   expect(bracket.y - bracket.stroke / 2).toBeGreaterThan(-0.5);
   expect(bracket.x + bracket.width + bracket.stroke / 2).toBeLessThan(0.5);
   expect(bracket.y + bracket.height + bracket.stroke / 2).toBeLessThan(0.5);
-  expect(bracket.stroke * bracket.scale).toBeCloseTo(geometry.board.width / 16 / 24, 1);
+  const svgWidth = (await page.locator('.game-board').boundingBox())!.width;
+  expect(bracket.stroke * bracket.scale).toBeCloseTo(svgWidth / 16 / 24, 1);
   await expect(page.locator('.game-board__surface')).toHaveCSS('fill', 'rgb(17, 31, 53)');
   const blocked = page.locator('.game-board__blocked-area');
   await expect(blocked).toHaveCount(1);
@@ -245,7 +246,7 @@ async function expectMatchColumns(page: Page, threeColumns: boolean) {
   expect(blockedStyle).toMatchObject({ x: 7, y: 7, width: 2, height: 2,
     color: 'rgb(58, 82, 114)', stripeColor: 'rgb(58, 82, 114)', rotation: 'rotate(45)' });
   expect(blockedStyle.fill).toBe(`url(#${blockedStyle.patternId})`);
-  const cellSize = geometry.board.width / 16;
+  const cellSize = svgWidth / 16;
   expect(blockedStyle.stroke * blockedStyle.scale).toBeCloseTo(cellSize * 1.5 / 48, 2);
   expect(blockedStyle.stripeWidth * blockedStyle.scale).toBeCloseTo(cellSize * 1.25 / 48, 2);
   expect(blockedStyle.spacing * blockedStyle.scale).toBeCloseTo(cellSize * 10 / 48, 2);

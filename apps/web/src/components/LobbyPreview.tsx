@@ -3,6 +3,7 @@ import type { MatchPlayer } from '@robot-puzzle/match';
 import type { PuzzleBoard } from '@robot-puzzle/puzzles';
 import type { RobotId, RobotPositions } from '@robot-puzzle/game-engine';
 import { BoardSvg } from './BoardSvg';
+import { BoardCoordinates } from './BoardCoordinates';
 import { LobbyRoster } from './LobbyRoster';
 import { LobbyControlsPanel } from './LobbyControlsPanel';
 
@@ -42,8 +43,10 @@ export function LobbyPreview({ puzzle, players, hostSeatId, currentSeatId, heade
     </header>}
     {status}
     <div className="board-preview__canvas">
-      <BoardSvg key={boardKey} board={puzzle.board} robots={robots} targets={puzzle.targets} activeTargetId={activeTargetId}
-        selectedRobot={selectedRobot} onRobotSelect={onRobotSelect} />
+      <BoardCoordinates>
+        <BoardSvg key={boardKey} board={puzzle.board} robots={robots} targets={puzzle.targets} activeTargetId={activeTargetId}
+          selectedRobot={selectedRobot} onRobotSelect={onRobotSelect} />
+      </BoardCoordinates>
     </div>
     <div className="board-preview__panels">
       {showActions ? <LobbyControlsPanel players={players} hostSeatId={hostSeatId} currentSeatId={currentSeatId}

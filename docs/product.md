@@ -49,6 +49,7 @@ This document does not establish intellectual-property clearance.
 - All 17 targets remain visible on the board. Inactive targets are slightly muted; the active target is shown at full brightness with **four inset L-shaped corner brackets** in `#B8CCE3`. Keep its normal dark-blue cell background, shape, color and position. No additional fill, glow, pulse or animation.
 - The selected robot has a **thin white ring**. This indicates robot selection and is separate from the active target's corner brackets.
 - Board is displayed with scalable SVG and occupies as much phone width as practical.
+- Desktop shows columns A–P above the board and rows 1–16 on the left, centered on cells in muted text and approximately 20px gutters outside the SVG. Mobile hides coordinates and retains the original board layout.
 
 ## 5. Robot movement rules
 

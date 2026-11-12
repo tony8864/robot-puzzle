@@ -218,7 +218,9 @@ The lobby uses compact side panels with stacked host buttons and a roster/contro
 divider. Its square board uses the viewport height less the top/bottom outer
 insets, limited by available column width; both side panels follow the board height.
 Narrower layouts keep controls below the board and horizontal lobby host buttons; preview CSS is
-separate. Coordinates/discussion changes remain proposals. Round results use a modal;
+separate. Desktop board coordinates use 20px top/left gutters outside the SVG,
+with equal CSS Grid tracks aligned to cells. Mobile hides labels and gutters.
+Discussion changes remain proposals. Round results use a modal;
 final match results use a full-screen view. Moves/Undo animate; Reset moves all
 robots directly together. Rebind/new attempts/missed versions snap. Animation
 never controls state; reduced motion applies.

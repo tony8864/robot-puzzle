@@ -907,6 +907,33 @@ body {
   outline-offset: 3px;
 }
 
+.board-coordinates { display: contents; }
+.board-coordinates__columns, .board-coordinates__rows { display: none; }
+@media (min-width: 1024px) and (min-aspect-ratio: 4 / 3) {
+  .board-coordinates {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    grid-template-columns: 20px minmax(0, 1fr);
+    grid-template-rows: 20px minmax(0, 1fr);
+    gap: 4px;
+  }
+  .board-coordinates > .game-board { grid-area: 2 / 2; min-height: 0; }
+  .board-coordinates__columns, .board-coordinates__rows {
+    display: grid;
+    min-width: 0;
+    min-height: 0;
+    color: #A8BED8;
+    font-size: 16px;
+    line-height: 1;
+    pointer-events: none;
+  }
+  .board-coordinates__columns { grid-area: 1 / 2; grid-template-columns: repeat(16, minmax(0, 1fr)); }
+  .board-coordinates__rows { grid-area: 2 / 1; grid-template-rows: repeat(16, minmax(0, 1fr)); }
+  .board-coordinates span { display: grid; place-items: center; }
+  .board-coordinates__rows span { justify-items: start; }
+}
+
 .game-board {
   display: block;
   width: 100%;

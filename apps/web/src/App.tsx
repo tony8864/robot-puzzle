@@ -1,6 +1,7 @@
 import { useState, useSyncExternalStore } from 'react';
 import { type Direction, type RobotId } from '@robot-puzzle/game-engine';
 import { BoardSvg } from './components/BoardSvg';
+import { BoardCoordinates } from './components/BoardCoordinates';
 import { DemonstrationControls } from './components/DemonstrationControls';
 import { LocalPlayerSwitcher } from './components/LocalPlayerSwitcher';
 import { PreparationPanel } from './components/PreparationPanel';
@@ -75,14 +76,14 @@ export function App({ controller, onNewMatch }: {
       </header>
       <div className={`demo-layout${match.phase === 'thinking' || match.phase === 'bidding' ? ' demo-layout--bidding' : ''}`}>
         <div className="board-preview__canvas">
-          <BoardSvg
+          <BoardCoordinates><BoardSvg
             board={match.puzzle.board}
             robots={demo ? demo.attempt.robots : match.officialRobots}
             targets={match.puzzle.targets}
             activeTargetId={round?.target.id ?? null}
             selectedRobot={canControl ? selectedRobot : null}
             onRobotSelect={canControl ? selectRobot : undefined}
-          />
+          /></BoardCoordinates>
         </div>
         {demo && canControl ? (
           <DemonstrationControls

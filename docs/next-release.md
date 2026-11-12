@@ -21,10 +21,13 @@
 ## Proposed additions
 
 ### 1. Board coordinates
-- [ ] Add letters and numbers so players can refer to specific cells.
-- Decide placement before coding.
-- Suggested convention: columns A–P left to right, rows 1–16 top to bottom.
-- Preserve the square board and mobile legibility.
+- [x] Desktop coordinates: columns A–P above, rows 1–16 to the left, centered on cells.
+- Use muted text and 20px gutters inside the existing square board allocation;
+  the SVG stays square and unchanged. Labels appear from 1024px at minimum 4:3
+  aspect ratio; mobile retains the original board without gutters.
+- Verified: 73 component tests, 2 responsive browser tests, Web/E2E typechecks
+  (web via build), production build and whitespace check passed. Browser checks
+  measure all label centers against cells; desktop screenshot reviewed.
 
 ### 2. Board colors
 - [ ] Change the central four cells' color.
