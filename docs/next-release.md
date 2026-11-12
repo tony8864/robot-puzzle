@@ -100,6 +100,26 @@ the existing header. Wide match screens now use sidebar/board/phase-panel column
 from 1280px and minimum 4:3 aspect ratio. Intermediate widths keep the stacked
 layout. These presentation changes do not change gameplay rules.
 
+- [x] Desktop match layout parity: share the lobby's viewport-height board sizing,
+  centered group and equal side-column expansion (220–260px / 300–340px).
+  MatchSidebar and right phase panel stretch to board height. Sidebar details
+  stay at the top and version at the bottom; bidding controls stay above the
+  player list, with the list at the bottom. Demonstration controls sit below
+  status at the bottom; constrained right panels scroll. Mobile/intermediate
+  layouts and game behavior unchanged.
+  Verification: 2 responsive browser tests, Web/E2E typechecks (web via build),
+  production build and whitespace check passed. Checked match phases, sidebar/
+  right-panel height, centered margins, equal column growth, timers and controls;
+  desktop screenshot reviewed.
+
+- [x] Desktop lobby panel expansion: let the sidebar grow from 220 to 260px and
+  controls panel from 300 to 340px, sharing available width while keeping the
+  board size, 20px gaps and 16px insets. Narrow viewports retain the minimum widths.
+  Corrected the sidebar's fixed width so it fills its column; calculate equal
+  panel growth from spare width so expansion never takes space from the board.
+  Verification: both responsive browser tests and whitespace check passed;
+  checked equal panel growth, board size and mobile layout; desktop screenshot reviewed.
+
 - [x] Desktop lobby centering: center the whole three-column group in the available
   width, distributing leftover space on both sides. Board size, panel widths,
   gaps, match alignment and mobile layout unchanged; supersedes lobby left alignment.

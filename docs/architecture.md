@@ -210,7 +210,10 @@ Connected play uses three top-aligned columns from 1280px width at a minimum 4:3
 aspect ratio: 220px MatchSidebar (lobby header before play), square board, and
 300px phase/player panels (LobbyControlsPanel before play),
 with 20px gaps and a minimum 16px outer inset (or larger safe-area inset).
-The lobby centers the whole three-column group; the match remains left-aligned.
+Lobby and match center the whole three-column group; their sidebar and controls can grow
+to 260px and 340px while space allows, preserving the board size, then the 20px
+gaps and 16px viewport insets. Both use the viewport height less outer insets,
+constrained by available width, with side panels matching the square board height.
 The lobby uses compact side panels with stacked host buttons and a roster/control
 divider. Its square board uses the viewport height less the top/bottom outer
 insets, limited by available column width; both side panels follow the board height.

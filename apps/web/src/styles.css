@@ -108,29 +108,33 @@
     max-width: none;
     padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
       max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
-    --match-board-size: clamp(480px, calc(100vh - 8rem), 768px);
-  }
-  .board-preview.connected-lobby--setup {
     --match-board-size: calc(100vh - max(16px, env(safe-area-inset-top)) - max(16px, env(safe-area-inset-bottom)));
   }
   @supports (height: 100dvh) {
-    .board-preview.connected-lobby--match { --match-board-size: clamp(480px, calc(100dvh - 8rem), 768px); }
-    .board-preview.connected-lobby--setup {
+    .board-preview:is(.connected-lobby--match, .connected-lobby--setup) {
       --match-board-size: calc(100dvh - max(16px, env(safe-area-inset-top)) - max(16px, env(safe-area-inset-bottom)));
     }
   }
   :is(.connected-lobby--match, .connected-lobby--setup) .connected-lobby__content {
     display: grid;
-    grid-template-columns: 220px minmax(0, 1fr) 300px;
+    --lobby-panel-growth: clamp(0px, calc((100% - var(--match-board-size) - 560px) / 2), 40px);
+    grid-template-columns: calc(220px + var(--lobby-panel-growth)) minmax(0, 1fr) calc(300px + var(--lobby-panel-growth));
     grid-template-areas: 'sidebar board panels';
     align-items: start;
     gap: 20px;
-    width: min(100%, calc(var(--match-board-size) + 560px));
-    max-width: 1328px;
-    margin-inline: 0;
+    width: min(100%, calc(var(--match-board-size) + 640px));
+    max-width: none;
+    margin-inline: auto;
   }
-  .connected-lobby--match .active-match-header { grid-area: sidebar; }
-  .connected-lobby--setup .connected-lobby__content { max-width: none; margin-inline: auto; }
+  .connected-lobby--match .active-match-header {
+    grid-area: sidebar;
+    align-self: stretch;
+    width: 100%;
+    margin-bottom: 0;
+    grid-template-areas: 'heading connection' 'detail detail' 'actions actions' '. .' 'version version';
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    align-content: start;
+  }
   .connected-lobby--match .active-match-header__actions { justify-content: space-between; }
   :is(.connected-lobby--match, .connected-lobby--setup) .board-preview__canvas { grid-area: board; margin: 0; }
   :is(.connected-lobby--match, .connected-lobby--setup) .board-preview__panels { grid-area: panels; display: flex; flex-direction: column; min-width: 0; }
@@ -141,7 +145,7 @@
     align-self: stretch;
     grid-template-rows: auto minmax(0, 1fr);
     margin-bottom: 0;
-    width: 220px;
+    width: 100%;
     max-width: 100%;
     gap: 12px;
     padding: 12px;
@@ -172,7 +176,18 @@
   .connected-lobby--setup .lobby-header__users-icon { display: block; flex: none; }
   .app-shell > .connected-lobby--setup ~ .app-version { display: none; }
   /* Let the board set the shared row height even when the controls are taller. */
-  .connected-lobby--setup .board-preview__panels { contain: size; align-self: stretch; }
+  :is(.connected-lobby--match, .connected-lobby--setup) .board-preview__panels { contain: size; align-self: stretch; }
+
+  .connected-lobby--match .board-preview__panels {
+    padding: 12px;
+    border: 1px solid #263852;
+    border-radius: 10px;
+    background: #111F35;
+    overflow-y: auto;
+  }
+  .connected-lobby--match .bidding-panels { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .connected-lobby--match .player-bids { margin-top: auto; }
+  .connected-lobby--match .demo-controls { margin-top: auto; }
 
   .connected-lobby--setup .lobby-controls-panel {
     display: flex;

@@ -23,13 +23,19 @@ async function expectMatchSidebar(page: Page, desktop: boolean) {
       phase: bounds('h1'), copy: bounds('.room-code__button'), more: bounds('.match-actions__toggle') };
   });
   if (desktop) {
-    expect(geometry.width).toBe(220);
+    const size = page.viewportSize()!;
+    const wide = size.width >= 1280;
+    const growth = wide ? Math.max(0, Math.min(40, (size.width - size.height - 560) / 2)) : 0;
+    expect(geometry.width).toBeCloseTo(220 + growth, 0);
     expect(geometry).toMatchObject({ background: 'rgb(17, 31, 53)', border: '1px',
       borderColor: 'rgb(38, 56, 82)', radius: '10px', padding: '12px', gap: '12px' });
     expect(geometry.heading.bottom).toBeLessThan(geometry.detail.y);
     expect(geometry.detail.bottom).toBeLessThan(geometry.actions.y);
     expect(geometry.connection.y).toBeCloseTo(geometry.heading.y, 0);
-    expect(geometry.version.y - geometry.actions.bottom).toBeCloseTo(6, 0);
+    if (wide) {
+      const bounds = (await sidebar.boundingBox())!;
+      expect(geometry.version.bottom).toBeCloseTo(bounds.y + bounds.height - 13, 0);
+    } else expect(geometry.version.y - geometry.actions.bottom).toBeCloseTo(6, 0);
     await expect(sidebar.locator('.active-match-header__version')).toBeVisible();
     await expect(page.locator('.app-version')).toBeHidden();
     await expect(sidebar.locator('.active-match-header__status-dot')).toHaveCSS('background-color', 'rgb(77, 212, 160)');
@@ -103,8 +109,9 @@ async function expectLobbyLayout(page: Page) {
   const usersIcon = header.locator('.lobby-header__users-icon');
   const lobbyVersion = header.locator('.lobby-header__version');
   if (wide) {
-    expect(layout.header.width).toBe(220);
-    expect(layout.panel.width).toBe(300);
+    const panelGrowth = Math.max(0, Math.min(40, (size.width - size.height - 560) / 2));
+    expect(layout.header.width).toBeCloseTo(220 + panelGrowth, 0);
+    expect(layout.panel.width).toBeCloseTo(300 + panelGrowth, 0);
     expect(layout.board.y).toBeCloseTo(layout.header.y, 0);
     expect(layout.header.bottom).toBeCloseTo(layout.board.bottom, 0);
     expect(layout.panel.y).toBeCloseTo(layout.board.y, 0);
@@ -183,14 +190,18 @@ async function expectMatchColumns(page: Page, threeColumns: boolean) {
       scrollY };
   });
   if (threeColumns) {
-    expect(geometry.sidebar.width).toBe(220);
-    expect(geometry.panels.width).toBe(300);
-    expect(geometry.board.width).toBeGreaterThan(geometry.panels.width);
+    const size = page.viewportSize()!;
+    const growth = Math.max(0, Math.min(40, (size.width - size.height - 560) / 2));
+    expect(geometry.sidebar.width).toBeCloseTo(220 + growth, 0);
+    expect(geometry.panels.width).toBeCloseTo(300 + growth, 0);
+    expect(geometry.board.width).toBeCloseTo(Math.min(size.height - 32, size.width - 592), 0);
     expect(geometry.board.x - geometry.sidebar.right).toBeCloseTo(20, 0);
     expect(geometry.panels.x - geometry.board.right).toBeCloseTo(20, 0);
     expect(geometry.sidebar.y).toBeCloseTo(geometry.board.y, 0);
-    expect(geometry.firstPanel.y).toBeCloseTo(geometry.board.y, 0);
-    expect(geometry.sidebar.x).toBeCloseTo(16, 0);
+    expect(geometry.panels.y).toBeCloseTo(geometry.board.y, 0);
+    expect(geometry.sidebar.bottom).toBeCloseTo(geometry.board.bottom, 0);
+    expect(geometry.panels.bottom).toBeCloseTo(geometry.board.bottom, 0);
+    expect(geometry.sidebar.x).toBeCloseTo(size.width - geometry.panels.right, 0);
     expect(geometry.sidebar.y + geometry.scrollY).toBeCloseTo(16, 0);
   } else {
     expect(geometry.panelDisplay).toBe('contents');
