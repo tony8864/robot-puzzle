@@ -214,7 +214,8 @@ export class LiveLobby {
       // Recheck immediately before mutation, after any asynchronous boundary.
       if (!await this.authorized(ws)) { await this.publish(); return; }
       if (!new PresenceStore(this.ctx.storage).renew(binding.connectionId, Date.now())) { this.drop(ws, 1001); await this.publish(); return; }
-      const result = executeLobbyCommand(this.ctx.storage, binding.sessionId, binding.seatId, input as RoomRequest);
+      const result = executeLobbyCommand(this.ctx.storage, binding.sessionId, binding.seatId, input as RoomRequest,
+        undefined, undefined, undefined, this.env);
       if (!result) { this.drop(ws, 1013); await this.publish(); return; }
       const ended = terminalRoom(this.ctx.storage);
       if (ended) {

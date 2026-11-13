@@ -8,3 +8,8 @@
 # LOCAL_EMPTY_ROOM_TIMEOUT_SECONDS="60"
 # Remove afterward and restart the backend. New empty periods default to 30 minutes.
 # Existing empty deadlines are persisted; use a fresh room for each test setting.
+
+# Optional local bidding shortcut (APP_ENV=local only; 1–60 seconds).
+# LOCAL_BIDDING_WINDOW_SECONDS="3"
+# Restart the backend after changing. Applies to the next first accepted bid;
+# existing bidding deadlines stay unchanged. Remove to restore 60 seconds.

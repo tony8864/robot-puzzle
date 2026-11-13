@@ -9,6 +9,7 @@ import { createPreparationJob } from './preparationJob';
 import { queuedPreparation } from './roomPreparation';
 import { advanceStoredBidding, withBiddingState, withAttemptState, projectStoredMatch, type StoredMatch } from './storedMatch';
 import { closeRoom, expireEmptyRoom, terminalRoom } from './roomTerminal';
+import { biddingWindowMs, type BiddingEnvironment } from './biddingPolicy';
 
 export function storedRoom(storage: DurableObjectStorage): StoredRoom | null {
   const row = storage.sql.exec<{ value: string }>('SELECT value FROM room_state WHERE singleton = 1').toArray()[0];
@@ -70,6 +71,7 @@ export function executeLobbyCommand(
   storage: DurableObjectStorage, sessionId: string, seatId: string,
   input: RoomRequest, choosePuzzle = anotherPuzzle, matchId: () => string = () => crypto.randomUUID(),
   now: () => number = () => Date.now(),
+  biddingEnv: BiddingEnvironment = { APP_ENV: 'production' },
 ): LobbyCommandResult | null {
   return storage.transactionSync(() => {
     const before = storedRoom(storage);
@@ -204,7 +206,10 @@ export function executeLobbyCommand(
         else outcome = { status: 'rejected', reason: next.outcome.reason === 'bid-increase' ? 'bid-increase'
           : next.outcome.reason === 'bidding-closed' ? 'bidding-closed' : next.outcome.reason === 'wrong-phase' ? 'wrong-phase' : 'invalid-bid' };
         if (next.state !== match.state && (next.state.phase === 'bidding' || next.state.phase === 'demonstrating')) {
-          nextRoom = withBiddingState(saved, next.state);
+          const biddingState = match.state.phase === 'thinking' && next.state.phase === 'bidding'
+            ? { ...next.state, deadlineAtMs: nowMs + biddingWindowMs(biddingEnv) }
+            : next.state;
+          nextRoom = withBiddingState(saved, biddingState);
           nextState = nextRoom.state;
         }
       }

@@ -101,6 +101,15 @@
   between robot selectors and D-pad retained for this checkpoint; supersedes
   earlier 12px spacing measurements below.
 
+- [x] Local bidding shortcut: optional `LOCAL_BIDDING_WINDOW_SECONDS` (1–60),
+  guarded by `APP_ENV=local`, changes only the server deadline on a first accepted
+  bid. Production/default/shared rules remain 60 seconds; persisted deadlines,
+  retries and reductions keep the original cutoff. Local setup documented.
+  Enabled 3 seconds in ignored `.dev.vars`; backend restart required. Automated
+  tests disable the manual override. Verification: 16 bidding tests, 25 socket
+  tests, 2 production-config tests and server typechecks passed. Changed server/
+  docs whitespace check passed; existing UI whitespace left untouched.
+
 - [x] Complete desktop robot-column alignment: B/Y centers align with the right
   arrow, matching R/G alignment with the left arrow. Other spacing and mobile unchanged.
   Verification: both responsive browser tests and whitespace check passed.

@@ -6,6 +6,7 @@ export default defineWorkersConfig({
     poolOptions: {
       workers: {
         wrangler: { configPath: './wrangler.jsonc' },
+        miniflare: { bindings: { LOCAL_BIDDING_WINDOW_SECONDS: '' } },
         isolatedStorage: true,
       },
     },

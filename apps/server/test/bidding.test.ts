@@ -7,6 +7,43 @@ import { projectLobbyState, type RoomRequest } from '@robot-puzzle/shared';
 import { executeLobbyCommand, expireBidding, storedRoom } from '../src/lobbyCommands';
 import { projectStoredMatch } from '../src/storedMatch';
 import type { StoredRoom } from '../src/roomMembership';
+import { biddingWindowMs } from '../src/biddingPolicy';
+
+test('local bidding policy defaults to 60 seconds and production ignores overrides', () => {
+  expect(biddingWindowMs({ APP_ENV: 'local' })).toBe(60000);
+  expect(biddingWindowMs({ APP_ENV: 'local', LOCAL_BIDDING_WINDOW_SECONDS: '' })).toBe(60000);
+  expect(biddingWindowMs({ APP_ENV: 'local', LOCAL_BIDDING_WINDOW_SECONDS: '3' })).toBe(3000);
+  for (const value of ['3', 'invalid', 3]) {
+    expect(biddingWindowMs({ APP_ENV: 'production', LOCAL_BIDDING_WINDOW_SECONDS: value })).toBe(60000);
+  }
+  for (const value of ['0', '-1', '61', '1.5', 'abc', 3]) {
+    expect(() => biddingWindowMs({ APP_ENV: 'local', LOCAL_BIDDING_WINDOW_SECONDS: value })).toThrow();
+  }
+});
+
+test('local three-second deadline persists across revisions/retries and rejects bids at expiry', async () => {
+  await inRoom((storage, room) => {
+    const first = request(room, 7);
+    const run = (input: RoomRequest, now: number, seconds = '3') => executeLobbyCommand(storage,
+      'session-0', room.state.players[0].seatId, input, undefined, undefined, () => now,
+      { APP_ENV: 'local', LOCAL_BIDDING_WINDOW_SECONDS: seconds })!;
+    expect(run(first, 1000).outcome.status).toBe('accepted');
+    expect(storedRoom(storage)!.match!.state).toMatchObject({ phase: 'bidding', deadlineAtMs: 4000 });
+    expect(run(request(room, 6), 3999, '10').outcome.status).toBe('accepted');
+    expect(run(first, 3999).duplicate).toBe(true);
+    expect(storedRoom(storage)!.match!.state).toMatchObject({ phase: 'bidding', deadlineAtMs: 4000 });
+    expect(run(request(room, 5), 4000).outcome).toEqual({ status: 'rejected', reason: 'bidding-closed' });
+    expect(storedRoom(storage)!.match!.state.phase).toBe('demonstrating');
+  });
+});
+
+test('production first bid stays at 60 seconds even with a local override supplied', async () => {
+  await inRoom((storage, room) => {
+    executeLobbyCommand(storage, 'session-0', room.state.players[0].seatId, request(room, 3),
+      undefined, undefined, () => 1000, { APP_ENV: 'production', LOCAL_BIDDING_WINDOW_SECONDS: '3' });
+    expect(storedRoom(storage)!.match!.state).toMatchObject({ phase: 'bidding', deadlineAtMs: 61000 });
+  });
+});
 
 async function inRoom(work: (storage: DurableObjectStorage, room: StoredRoom) => void, count = 2) {
   await runInDurableObject(env.ROOMS.get(env.ROOMS.idFromName(crypto.randomUUID())), (_instance, ctx) => {

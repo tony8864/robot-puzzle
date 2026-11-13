@@ -81,6 +81,22 @@ The Worker listens on loopback port 8787 and its debugger on 9230. Vite defaults
 to loopback 5173 with `strictPort`, so a busy port fails rather than switching.
 Stop each server with Ctrl+C. Do not expose Worker/debugger ports on Wi-Fi.
 
+For a shorter local bidding countdown, add this to the existing ignored
+`apps/server/.dev.vars`, preserving other settings:
+
+```dotenv
+LOCAL_BIDDING_WINDOW_SECONDS="3"
+```
+
+Restart the backend. Values must be whole seconds from 1–60 and apply only when
+`APP_ENV=local`; production ignores this setting and keeps 60 seconds. Only the
+next first accepted bid uses the override. Existing deadlines remain persisted
+through changes/restarts, and revisions/retries never extend them. Remove the
+setting (or leave it empty) and restart to restore the default. This does not
+alter the browser-only local simulator or shared match-engine rules.
+Server automated tests explicitly disable this manual override; the bidding
+policy tests exercise the shorter duration separately.
+
 For UI-only/local-simulator checks without HTTPS:
 
 ```powershell

@@ -123,6 +123,10 @@ The server enforces the original 60-second bid deadline and first-acceptance tie
 priority, including on reads/retries/rebind; rejected commands can retain a due
 transition. Client countdowns are informational. Action-specific context avoids
 unfair global-revision rejection of competing bids. Bids currently lower only.
+For local manual testing only, `APP_ENV=local` may set
+`LOCAL_BIDDING_WINDOW_SECONDS` (1–60) when the first bid creates the persisted
+deadline. Production ignores it; shared match rules and existing deadlines remain
+unchanged. See [local development](local-development.md).
 Attempts count retained history and allow corrections without an automatic failure.
 Success scores once/commits all four positions; failure rolls all four back.
 Product defines complete bidding, demonstration and scoring rules.
