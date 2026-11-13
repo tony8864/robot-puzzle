@@ -97,6 +97,49 @@
 
 ## Current focus
 
+- [x] Final demonstration spacing: owner's 48px robot row gap and 48px separation
+  between robot selectors and D-pad retained for this checkpoint; supersedes
+  earlier 12px spacing measurements below.
+
+- [x] Complete desktop robot-column alignment: B/Y centers align with the right
+  arrow, matching R/G alignment with the left arrow. Other spacing and mobile unchanged.
+  Verification: both responsive browser tests and whitespace check passed.
+
+- [x] Desktop demonstration alignment, first step: move only R/G so their centers
+  align vertically with the left arrow. B/Y, D-pad, button sizes and mobile unchanged.
+  Verification: both responsive browser tests and whitespace check passed;
+  measured R/G alignment and preserved right-column placement.
+
+- [x] Restore desktop demonstration robot selectors to 2×2 (R/B above G/Y),
+  retaining current D-pad placement, spacing, button styles and mobile layout.
+  This supersedes the horizontal selector row recorded below. Deferring removal
+  of desktop on-screen movement controls to a later release.
+  Verification: both responsive browser tests and whitespace check passed.
+
+- [x] Desktop demonstration cluster refinement: one horizontal R/B/G/Y row with
+  unchanged 48px selectors, centered D-pad 12px below. Flexible spacers put the
+  cluster in the upper-middle of available space; bottom actions and mobile
+  presentation unchanged. Supersedes the earlier desktop 2×2 selector layout.
+  Verification: both responsive browser tests and whitespace check passed;
+  checked robot order, upper-middle placement, 12px D-pad gap, bottom actions
+  and mobile layout; desktop screenshot reviewed.
+
+- [x] Desktop demonstration header: player name above muted bid on the left;
+  larger move count above small MOVES caption on the right. Preserve top flex
+  alignment, divider, panel size and mobile's inline status text.
+  Verification: 52 match-rendering tests, 2 responsive browser tests, frontend
+  typechecks/build and whitespace check passed; desktop screenshot reviewed.
+
+- [x] Desktop demonstration panel: status/bid left and move count right above a
+  subtle divider; centered 2×2 robot selectors and D-pad with 12px gap; existing
+  attempt actions at the bottom. Hide only redundant selection text on wide
+  desktop; preserve feedback, mobile markup presentation and all handlers.
+  Verification: 59 component tests, 2 responsive browser tests, Web/E2E
+  typechecks (web via build), production build and whitespace check passed;
+  desktop screenshot reviewed. Updated the coordinate check for the owner's
+  existing 4px gap. Checked robot-grid order, centering, 12px D-pad gap,
+  bottom action placement, disabled Undo/Reset and mobile selection feedback.
+
 Documentation cleanup is complete. `MatchSidebar` now has an approved compact
 desktop panel at minimum 1024px width and minimum 4:3 aspect ratio. Mobile keeps
 the existing header. Wide match screens now use sidebar/board/phase-panel columns

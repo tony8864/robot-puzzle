@@ -196,7 +196,7 @@ test('spectator host sees authoritative bidder, bid, count and target but no att
   const { markup } = render('connected', false, { room: demonstratingRoomFixture(twoPlayers()) });
   expect(markup).toContain('Guest is demonstrating');
   expect(markup).toContain('Bid: 5');
-  expect(markup).toContain('Moves: 0 / 5');
+  expect(markup.replace(/<[^>]+>/g, '')).toContain('Moves: 0 / 5');
   expect(markup).toContain('game-board__target--active');
   for (const absent of ['Place Bid', 'Skip Round', 'Give Up', 'Movement controls', 'role="timer"']) expect(markup).not.toContain(absent);
 });

@@ -26,8 +26,9 @@ export async function expectMobileLayout(page: Page, board = true) {
       await expect(rows.locator('span')).toHaveText(Array.from({ length: 16 }, (_, i) => String(i + 1)));
       const svg = (await page.locator('.game-board').boundingBox())!;
       expect(svg.width).toBeCloseTo(svg.height, 0);
-      expect(svg.x - bounds!.x).toBeCloseTo(20, 0);
-      expect(svg.y - bounds!.y).toBeCloseTo(20, 0);
+      const gap = await page.locator('.board-coordinates').evaluate((element) => parseFloat(getComputedStyle(element).gap) || 0);
+      expect(svg.x - bounds!.x).toBeCloseTo(20 + gap, 0);
+      expect(svg.y - bounds!.y).toBeCloseTo(20 + gap, 0);
       for (let i = 0; i < 16; i++) {
         const column = (await columns.locator('span').nth(i).boundingBox())!;
         const row = (await rows.locator('span').nth(i).boundingBox())!;

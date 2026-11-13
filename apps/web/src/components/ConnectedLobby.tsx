@@ -127,9 +127,9 @@ export function ConnectedLobby({ entry, client, onTerminal, onLeave }: { readonl
             nickname={activeName ?? 'The bidder'} bid={activeBid!.value} moveCount={match.attempt.moveCount}
             disconnect={match.disconnect} isHost={isHost} disabled={!connected || unresolved} pending={state.attempt === 'pending'}
             getServerNow={flow.getServerNow} onSkip={flow.skipDisconnected} /> : <>
-          <section className="connected-lobby__notice" aria-label="Demonstration status">
-            <p>{`${activeName} is demonstrating · Bid: ${activeBid?.value}`}</p>
-            <p>{`Moves: ${match.attempt.moveCount} / ${activeBid?.value}`}</p>
+          <section className="connected-lobby__notice demonstration-status" aria-label="Demonstration status">
+            <p className="demonstration-status__player">{`${activeName} is demonstrating`}<span className="demonstration-status__separator"> · </span><span className="demonstration-status__bid">{`Bid: ${activeBid?.value}`}</span></p>
+            <p className="demonstration-status__moves"><span className="demonstration-status__moves-label">Moves: </span><span className="demonstration-status__count">{match.attempt.moveCount} / {activeBid?.value}</span><span className="demonstration-status__caption">MOVES</span></p>
           </section>
           {isActive ? <DemonstrationControls selectedRobot={selectedRobot} moveCount={match.attempt.moveCount}
             onSelect={selectRobot} onMove={(direction) => flow.move(selectedRobot, direction)}

@@ -381,6 +381,38 @@ test('entry, live board, menus, attempt controls and results retain square geome
     await guestPage.setViewportSize(size); await expectMobileLayout(guestPage);
     await expectMatchSidebar(guestPage, size.width >= 1024 && size.width / size.height >= 4 / 3);
     await expectMatchColumns(guestPage, size.width >= 1280 && size.width / size.height >= 4 / 3);
+    const wide = size.width >= 1280 && size.width / size.height >= 4 / 3;
+    const selectionStatus = guestPage.locator('.demo-controls__selection-status');
+    if (wide) {
+      await expect(selectionStatus).toBeHidden();
+      await expect(guestPage.locator('.demonstration-status')).toHaveCSS('border-bottom-color', 'rgb(38, 56, 82)');
+      const controls = await guestPage.locator('.demo-controls').evaluate((element) => {
+        const box = (selector: string) => {
+          const b = element.querySelector(selector)!.getBoundingClientRect();
+          return { x: b.x, y: b.y, width: b.width, height: b.height, bottom: b.bottom };
+        };
+        return { middle: box('.demo-controls__movement'), robots: box('.robot-selector'),
+          red: box('.robot-selector__button--red'), blue: box('.robot-selector__button--blue'),
+          green: box('.robot-selector__button--green'), yellow: box('.robot-selector__button--yellow'),
+          leftArrow: box('.direction-pad__button--left'),
+          rightArrow: box('.direction-pad__button--right'),
+          pad: box('.direction-pad'), actions: box('.attempt-actions'), bottom: element.getBoundingClientRect().bottom };
+      });
+      expect(controls.red.y).toBe(controls.blue.y); expect(controls.green.y).toBe(controls.yellow.y);
+      expect(controls.green.y).toBeGreaterThan(controls.red.bottom);
+      expect(controls.red.x).toBeLessThan(controls.blue.x);
+      expect(controls.green.x).toBe(controls.red.x);
+      expect(controls.red.x + controls.red.width / 2).toBeCloseTo(controls.leftArrow.x + controls.leftArrow.width / 2, 0);
+      expect(controls.blue.x + controls.blue.width / 2).toBeCloseTo(controls.rightArrow.x + controls.rightArrow.width / 2, 0);
+      expect(controls.yellow.x).toBe(controls.blue.x);
+      expect(controls.green.x).toBeLessThan(controls.yellow.x);
+      expect(controls.pad.y - controls.robots.bottom).toBeCloseTo(48, 0);
+      expect(controls.pad.x + controls.pad.width / 2).toBeCloseTo(controls.robots.x + controls.robots.width / 2, 0);
+      expect((controls.robots.y + controls.pad.bottom) / 2).toBeLessThanOrEqual(controls.middle.y + controls.middle.height / 2 + 0.5);
+      expect(controls.actions.bottom).toBeCloseTo(controls.bottom, 0);
+      await expect(guestPage.getByRole('button', { name: 'Undo last move' })).toBeDisabled();
+      await expect(guestPage.getByRole('button', { name: 'Reset attempt' })).toBeDisabled();
+    } else await expect(selectionStatus).toBeVisible();
   }
   await guestPage.screenshot({ path: info.outputPath('short-demonstration.png') });
   await guestPage.getByRole('button', { name: 'Give up', exact: true }).click();

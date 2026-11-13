@@ -187,7 +187,55 @@
   }
   .connected-lobby--match .bidding-panels { display: flex; flex-direction: column; flex: 1; min-height: 0; }
   .connected-lobby--match .player-bids { margin-top: auto; }
-  .connected-lobby--match .demo-controls { margin-top: auto; }
+  .connected-lobby--match .demonstration-status {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    margin: 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #263852;
+    text-align: left;
+  }
+  .connected-lobby--match .demonstration-status p { margin: 0; }
+  .connected-lobby--match .demonstration-status__player { min-width: 0; color: #e8f0fa; font-size: 14px; }
+  .connected-lobby--match .demonstration-status__bid { display: block; margin-top: 4px; color: #a8bed8; font-size: 12px; }
+  .connected-lobby--match .demonstration-status__moves { flex: none; color: #e8f0fa; text-align: right; }
+  .connected-lobby--match .demonstration-status__count { display: block; font-size: 22px; line-height: 1.2; }
+  .connected-lobby--match .demonstration-status__caption { display: block; margin-top: 4px; color: #a8bed8; font-size: 10px; }
+  .connected-lobby--match .demonstration-status__moves-label,
+  .connected-lobby--match .demonstration-status__separator { display: none; }
+  .connected-lobby--match .demo-controls { display: flex; flex-direction: column; flex: 1; margin-top: 0; }
+  .connected-lobby--match .demo-controls__movement {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    gap: 48px;
+    padding-block: 12px;
+  }
+  .connected-lobby--match .demo-controls .robot-selection { margin: 0; }
+  .connected-lobby--match .demo-controls__movement::before { content: ''; flex: 1; }
+  .connected-lobby--match .demo-controls__movement::after { content: ''; flex: 2; }
+  .connected-lobby--match .demo-controls__movement > * { flex-shrink: 0; }
+  .connected-lobby--match .demo-controls .robot-selector {
+    display: grid;
+    grid-template-columns: repeat(2, 3rem);
+    gap: 8px;
+    row-gap: 48px;
+  }
+  /* Align robot-column centers with the outer D-pad columns. */
+  .connected-lobby--match .demo-controls :is(.robot-selector__button--red, .robot-selector__button--green) {
+    transform: translateX(calc((3rem + 8px) / 2 - (12rem + 0.6rem) / 3));
+  }
+  .connected-lobby--match .demo-controls :is(.robot-selector__button--blue, .robot-selector__button--yellow) {
+    transform: translateX(calc((12rem + 0.6rem) / 3 - (3rem + 8px) / 2));
+  }
+  .connected-lobby--match .demo-controls .direction-pad { margin: 0; }
+  .connected-lobby--match .demo-controls .attempt-actions { margin: 0 auto; flex-shrink: 0; }
+  .connected-lobby--match .demo-controls__selection-status { display: none; }
 
   .connected-lobby--setup .lobby-controls-panel {
     display: flex;
@@ -666,6 +714,8 @@ body {
 .demo-controls {
   min-width: 0;
 }
+.demo-controls__movement { display: contents; }
+.demonstration-status__caption { display: none; }
 
 /* Keep the bid card below the board even where demonstrations use two columns. */
 .demo-layout.demo-layout--bidding {

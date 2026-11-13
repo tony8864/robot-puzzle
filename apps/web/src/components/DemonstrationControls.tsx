@@ -19,6 +19,7 @@ export function DemonstrationControls(props: {
 }) {
   return (
     <section aria-label="Demonstration controls" className="demo-controls">
+      <div className="demo-controls__movement">
       <div aria-label="Robot selection" className="robot-selection" role="group">
         <div className="robot-selector">
           {ROBOT_IDS.map((robotId) => (
@@ -46,6 +47,7 @@ export function DemonstrationControls(props: {
           ><span aria-hidden="true">{arrow}</span></button>
         ))}
       </div>
+      </div>
       <div aria-label="Attempt actions" className="attempt-actions" role="group">
         <button aria-label="Undo last move" className="attempt-actions__button" disabled={props.disabled || props.moveCount === 0} onClick={props.onUndo} type="button">
           <span aria-hidden="true" className="attempt-actions__icon">↶</span><span>Undo</span>
@@ -57,7 +59,7 @@ export function DemonstrationControls(props: {
           <span aria-hidden="true" className="attempt-actions__icon">×</span><span>Give Up</span>
         </button>
       </div>
-      <p aria-live="polite" className="board-preview__status">{props.feedback ?? `${ROBOT_NAMES[props.selectedRobot]} robot selected`}</p>
+      <p aria-live="polite" className={`board-preview__status${props.feedback ? '' : ' demo-controls__selection-status'}`}>{props.feedback ?? `${ROBOT_NAMES[props.selectedRobot]} robot selected`}</p>
     </section>
   );
 }
