@@ -119,10 +119,14 @@ Round Result --host View Results, round 10--> Finished
 Finished --host New Match--> Lobby --explicit host Start--> Preparing
 ```
 
-The server enforces the original 60-second bid deadline and first-acceptance tie
+The server enforces the original 60-second bid deadline and current tie
 priority, including on reads/retries/rebind; rejected commands can retain a due
 transition. Client countdowns are informational. Action-specific context avoids
-unfair global-revision rejection of competing bids. Bids currently lower only.
+unfair global-revision rejection of competing bids. Players may raise or lower
+their own bid. Increases move their priority behind current bidders; decreases
+preserve priority. The existing `firstAcceptedOrder` field stores compact current
+ranks (0–5), retaining the wire/storage shape and supporting unlimited revisions
+without an ever-growing counter. Exact command retries never reset priority.
 For local manual testing only, `APP_ENV=local` may set
 `LOCAL_BIDDING_WINDOW_SECONDS` (1–60) when the first bid creates the persisted
 deadline. Production ignores it; shared match rules and existing deadlines remain

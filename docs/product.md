@@ -82,9 +82,9 @@ This document does not establish intellectual-property clearance.
 - Every player may bid independently of other players' values. The implementation accepts positive safe integers; no additional gameplay cap is imposed.
 - The **first accepted bid** starts a **60-second countdown** visible to everyone.
 - Other players may submit bids during that countdown.
-- Players may **lower** an existing bid, but may not raise it.
+- Players may **raise or lower** their own existing bid. Keep the current submission interaction without an additional confirmation step.
 - Bidding closes at the server deadline; no new or revised bid is accepted at or after it. Revising a bid never restarts or extends the window.
-- Demonstration order is ascending by final bid count; **earlier first accepted bid has priority for equal bids**, including after reductions.
+- Demonstration order is ascending by final bid count. First bids establish tie priority; an **increase resets the player's priority behind all current bidders**. Reductions and identical submissions preserve their current priority. A later first bid goes behind current bidders.
 - If nobody bids, the host may skip the round (with confirmation). No point is awarded.
 
 ## 8. Demonstration and undo
@@ -166,7 +166,7 @@ details belong in [architecture](architecture.md), not an open product backlog.
 - **Hosted operation:** solver resource use, general hosted limits and deployed-version identification remain unverified as described in [deployment](deployment.md).
 - **Wider distribution:** branding and legal review remain separate from this requirements baseline.
 
-Release additions, including bid increases, early bidding closure and discussion
+Release additions, including early bidding closure and discussion
 tools, remain proposals in [next release](next-release.md). This cleanup does not
 approve them or certify deployment/device behavior.
 
@@ -176,6 +176,7 @@ approve them or certify deployment/device behavior.
 - **Bidding:** Maria bids 7, Alex bids 6, Maria lowers to 5; after the timer ends, Maria demonstrates first.
 - **Equal bids:** Maria submits 6 before Alex submits 6; Maria has first priority.
 - **Tie after reduction:** Maria submits 7, Alex submits 6, then Maria lowers to 6; Maria retains priority from her first accepted bid and the deadline is unchanged.
+- **Tie after increase:** Maria submits 3, Alex submits 6, Maria raises to 6; Alex demonstrates first. Maria cannot reclaim original priority by lowering and later returning to 6. The deadline is unchanged.
 - **Undo:** A player bids 7, makes 5 moves, undoes 2, and completes in 6 current moves; the attempt succeeds.
 - **Failed attempt:** Maria gives up after moving robots; Alex begins from the original positions for that round.
 - **Carry-forward:** Alex solves a target with red and blue moved; the next round begins with **both** at their final positions.

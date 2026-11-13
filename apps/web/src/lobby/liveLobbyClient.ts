@@ -273,7 +273,7 @@ export function liveLobbyClient(input: RoomEnteredMessage, overrides: Partial<De
       actionError: result.outcome.status === 'rejected'
       ? result.outcome.reason === 'not-host' ? ending ? 'Only the host can end the room.' : skippingAttempt ? 'Only the host can skip a disconnected attempt.' : returning ? 'Only the host can return everyone to the lobby.' : progressing ? 'Only the host can advance or skip the round.' : preparing ? 'Only the host can retry preparation.' : starting ? 'Only the host can start the match.' : 'Only the host can shuffle the board.'
         : result.outcome.reason === 'preparation-cooldown' ? 'Preparation retry is not ready yet. Wait briefly and try again.'
-        : result.outcome.reason === 'bid-increase' ? 'You can only lower your own bid.'
+        : result.outcome.reason === 'bid-increase' ? 'This server does not accept bid increases. Refresh after the server is updated.'
         : result.outcome.reason === 'bidding-closed' ? 'Bidding has closed.'
         : result.outcome.reason === 'invalid-bid' ? 'Enter a positive whole-number bid.'
         : result.outcome.reason === 'not-active-bidder' ? 'Only the active bidder can control the robots.'
@@ -406,7 +406,7 @@ export function liveLobbyClient(input: RoomEnteredMessage, overrides: Partial<De
       if (!match || (match.phase !== 'thinking' && match.phase !== 'bidding') || !state.bidWindowOpen ||
         (match.phase === 'bidding' && getServerNow() >= match.deadlineAtMs) || !Number.isSafeInteger(value) || value! <= 0) return;
       const previous = match.phase === 'bidding' ? match.bids.find((b) => b.seatId === entry.seatId) : undefined;
-      if (previous && value! >= previous.value) return;
+      if (previous && value! === previous.value) return;
     } else if (type === 'preparation.retry') {
       if (!preparation?.retry || !state.canRetryPreparation || (preparation.status !== 'deferred' && preparation.status !== 'error')) return;
     } else if (room.status !== 'lobby' || (type === 'room.start' && room.players.length < 2)) return;

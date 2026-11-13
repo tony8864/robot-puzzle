@@ -53,9 +53,8 @@ test('real bidding, corrections, rollback, successful multi-robot carry-forward 
     await expect(player.getByRole('button', { name: 'Skip Round', exact: true })).toHaveCount(0);
     await expect(player.getByRole('region', { name: 'Demonstration controls' })).toHaveCount(0);
   }
-  await page.getByRole('textbox', { name: 'YOUR BID' }).fill(String(finalBid + 1));
-  await expect(page.getByRole('button', { name: 'Place Bid', exact: true })).toBeDisabled();
-  await expect(page.getByRole('status').filter({ hasText: 'You can only lower your own bid.' })).toBeVisible();
+  await placeBid(guestPage, finalBid + 1);
+  await placeBid(guestPage, finalBid);
   const revised = hostRoom()!;
   if (revised.status !== 'playing' || revised.match.phase !== 'bidding') throw new Error('Expected revised bidding');
   expect(revised.match.deadlineAtMs).toBe(deadline);
@@ -71,7 +70,7 @@ test('real bidding, corrections, rollback, successful multi-robot carry-forward 
   await expect(guestPage.getByRole('region', { name: 'Demonstration controls' })).toHaveCount(0);
   let robots = plan.start;
   const checkCount = async (count: number) => {
-    for (const player of pages) await expect(player.getByText(`Moves: ${count} / ${finalBid}`, { exact: true })).toBeVisible();
+    for (const player of pages) await expect(player.locator('.demonstration-status__count')).toHaveText(`${count} / ${finalBid}`);
   };
   await clickMove(page, plan.detour[0]);
   robots = moveRobot(thinking.puzzle.board, robots, plan.detour[0].robotId, plan.detour[0].direction).robots;

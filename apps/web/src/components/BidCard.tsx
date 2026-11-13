@@ -20,7 +20,7 @@ export function BidCard({ acceptedBid, onPlaceBid, disabled = false, pending = f
     setFeedback(!result ? null : result.status === 'accepted' ? 'Bid accepted.'
       : result.status === 'no-op' ? 'This bid is already accepted.'
       : result.reason === 'bidding-closed' ? 'Bidding has closed.'
-      : result.reason === 'bid-increase' ? 'You can only lower your own bid.'
+      : result.reason === 'bid-increase' ? 'This server does not accept bid increases. Refresh after the server is updated.'
       : 'Bid not accepted. Check the value and current phase.');
   }
 
@@ -61,7 +61,7 @@ export function BidCard({ acceptedBid, onPlaceBid, disabled = false, pending = f
           className="bid-card__step"
           type="button"
           aria-label="Increase bid"
-          disabled={disabled || value === null || value === Number.MAX_SAFE_INTEGER || (acceptedBid !== undefined && value >= acceptedBid)}
+          disabled={disabled || value === null || value === Number.MAX_SAFE_INTEGER}
           onClick={() => { setFeedback(null); dispatch({ type: 'step', delta: 1 }); }}
         >
           <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -78,8 +78,7 @@ export function BidCard({ acceptedBid, onPlaceBid, disabled = false, pending = f
       {(acceptedBid !== undefined || feedback) && (
         <p className="bid-card__feedback" role="status">
           {acceptedBid !== undefined && `Your accepted bid: ${acceptedBid} ${acceptedBid === 1 ? 'move' : 'moves'}. `}
-          {value !== null && acceptedBid !== undefined && value > acceptedBid
-            ? 'You can only lower your own bid.' : feedback ?? (acceptedBid === 1 ? 'This is the minimum bid.' : 'You may lower this bid.')}
+          {feedback ?? (acceptedBid !== undefined ? 'You may raise or lower this bid. Raising resets tie priority.' : '')}
         </p>
       )}
     </section>

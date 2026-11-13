@@ -94,7 +94,7 @@ test.each([5, 7, 12])('another player may bid %i when the existing bid is 7', (v
   expect(state.deadlineAtMs).toBe(first.deadlineAtMs);
 });
 
-test('own reductions retain first acceptance; identical bid is no-op and own raises fail', () => {
+test('reductions preserve tie priority; identical bids are no-op; increases reset priority', () => {
   let state = bidding(bid(ready(), 'maria', 9).state);
   state = bidding(bid(state, 'alex', 7, 2_000).state);
   const lowered = bidding(bid(state, 'maria', 7, 60_000).state);
@@ -104,9 +104,25 @@ test('own reductions retain first acceptance; identical bid is no-op and own rai
   expect(same.outcome).toEqual({ status: 'no-op', reason: 'same-bid' });
   expect(same.state).toBe(lowered);
   const raised = bid(lowered, 'maria', 8, 60_002);
-  expect(raised.outcome).toEqual({ status: 'rejected', reason: 'bid-increase' });
-  expect(raised.state).toBe(lowered);
+  expect(raised.outcome.status).toBe('accepted');
+  const raisedState = bidding(raised.state);
+  expect(raisedState.deadlineAtMs).toBe(lowered.deadlineAtMs);
+  const reducedAgain = bidding(bid(raisedState, 'maria', 7, 60_003).state);
+  expect(demonstrating(tick(reducedAgain, reducedAgain.deadlineAtMs).state).bidderQueue.map((entry) => entry.seatId)).toEqual(['alex', 'maria']);
   expect(demonstrating(tick(lowered, lowered.deadlineAtMs).state).bidderQueue.map((entry) => entry.seatId)).toEqual(['maria', 'alex']);
+});
+
+test('repeated increases and later joiners preserve a bounded, unique tie-priority order', () => {
+  let state = bidding(bid(ready(), 'maria', 1).state);
+  state = bidding(bid(state, 'alex', 3).state);
+  for (let i = 0; i < 20; i++) {
+    state = bidding(bid(state, 'maria', 2 + i).state);
+    expect(state.bids.map((entry) => entry.firstAcceptedOrder).sort()).toEqual([0, 1]);
+  }
+  state = bidding(bid(state, 'teo', 3).state);
+  state = bidding(bid(state, 'maria', 3).state);
+  expect(demonstrating(tick(state, state.deadlineAtMs).state).bidderQueue.map((entry) => entry.seatId)).toEqual(['alex', 'maria', 'teo']);
+  expect(bid(state, 'alex', 4, state.deadlineAtMs).outcome).toEqual({ status: 'rejected', reason: 'bidding-closed' });
 });
 
 test('equal timestamps and reductions still prioritize original first acceptance', () => {

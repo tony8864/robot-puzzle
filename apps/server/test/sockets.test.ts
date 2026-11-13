@@ -355,7 +355,7 @@ describe('real lobby WebSockets', () => {
     const original = await command(connected[0].client, first);
     expect(original.outcome.status).toBe('accepted');
     for (let i = 1; i < count; i++) expect((await command(connected[i].client, bid(7 + i))).outcome.status).toBe('accepted');
-    expect((await command(connected[0].client, bid(9))).outcome).toEqual({ status: 'rejected', reason: 'bid-increase' });
+    expect((await command(connected[0].client, bid(9))).outcome.status).toBe('accepted');
     await runInDurableObject(stub(room.roomId), async (_instance, ctx) => {
       expect(await ctx.storage.getAlarm()).toBe(now + 30001); // Lease before bidding deadline.
     });

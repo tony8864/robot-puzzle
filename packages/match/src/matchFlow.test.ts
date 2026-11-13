@@ -203,7 +203,7 @@ function mixedMatch() {
       script.player({ type: 'bid.submit', value: size + 2 }, 'alex');
       script.player({ type: 'bid.submit', value: size + 2 }, 'nikos');
       script.player({ type: 'bid.submit', value: size + 2 }, 'alex', 'no-op', 'same-bid');
-      script.player({ type: 'bid.submit', value: size + 3 }, 'alex', 'rejected', 'bid-increase');
+      script.player({ type: 'bid.submit', value: size + 9 }, 'teo');
       script.nowMs += 59_999;
       script.tick('no-op', 'deadline-not-due');
       script.nowMs++;

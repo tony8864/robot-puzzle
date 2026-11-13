@@ -498,18 +498,20 @@ test.each([true, false])('host=%s can submit an independent bid only after bindi
   expect(client.getSnapshot().bid).toBe('idle');
 });
 
-test('only lower own accepted bids are sent; another higher bid is allowed by independent seat rules', () => {
+test('own increases and reductions are sent; invalid and unchanged bids are blocked', () => {
   const { client, bind, initialRoom, sockets, result, snapshot } = setup();
   const room = withGuest(initialRoom);
   const bidding = biddingRoomFixture(room, [7, 3]);
   client.connect(); bind(bidding);
-  client.placeBid(8); client.placeBid(7); client.placeBid(0); client.placeBid(1.5);
+  client.placeBid(7); client.placeBid(0); client.placeBid(1.5);
   expect(sockets[0].sent).toHaveLength(0);
-  client.placeBid(5);
-  expect(JSON.parse(sockets[0].sent[0]).command.value).toBe(5);
+  client.placeBid(8);
+  expect(JSON.parse(sockets[0].sent[0]).command.value).toBe(8);
   result(4);
-  snapshot({ ...biddingRoomFixture(room, [5, 3]), revision: 4 });
-  expect(client.getSnapshot().room).toMatchObject({ match: { bids: [{ value: 5 }, { value: 3 }] } });
+  snapshot({ ...biddingRoomFixture(room, [8, 3]), revision: 4 });
+  expect(client.getSnapshot().room).toMatchObject({ match: { bids: [{ value: 8 }, { value: 3 }] } });
+  client.placeBid(5);
+  expect(JSON.parse(sockets[0].sent[1]).command.value).toBe(5);
 });
 
 test('local deadline disables new bids but never creates a Demonstrating phase or sends a controller command', async () => {

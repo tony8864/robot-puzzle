@@ -17,7 +17,6 @@ export function submitBid(state: MatchState, seatId: SeatId, value: number, nowM
   }
 
   const previous = state.bids.find((bid) => bid.seatId === seatId);
-  if (previous && value > previous.value) return rejected(state, 'bid-increase');
   if (previous && value === previous.value) return noOp(state, 'same-bid');
   const updated: MatchBid = {
     seatId, value, firstAcceptedOrder: previous ? previous.firstAcceptedOrder : state.bids.length,
@@ -26,5 +25,13 @@ export function submitBid(state: MatchState, seatId: SeatId, value: number, nowM
     ? [state.bids[0].seatId === seatId ? updated : state.bids[0],
       ...state.bids.slice(1).map((bid) => bid.seatId === seatId ? updated : bid)]
     : [...state.bids, updated];
+  if (previous && value > previous.value) {
+    // Compact ranks keep repeated increases bounded and existing wire/storage compatible.
+    const priority = [...state.bids].sort((a, b) => a.firstAcceptedOrder - b.firstAcceptedOrder)
+      .filter((entry) => entry.seatId !== seatId).map((entry) => entry.seatId);
+    priority.push(seatId);
+    const rank = (entry: MatchBid): MatchBid => ({ ...entry, firstAcceptedOrder: priority.indexOf(entry.seatId) });
+    return accepted({ ...state, bids: [rank(bids[0]), ...bids.slice(1).map(rank)] });
+  }
   return accepted({ ...state, bids });
 }

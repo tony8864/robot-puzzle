@@ -49,12 +49,12 @@ test('draft edits are immutable and independent of the shared initial value', ()
   expect(INITIAL_BID_DRAFT).toEqual({ text: '1', lastValidValue: 1 });
 });
 
-test('submission permits new bids regardless of competitors, but only own reductions after acceptance', () => {
+test('submission permits positive changed bids in either direction', () => {
   expect(canPlaceBid('1')).toBe(true);
   expect(canPlaceBid('12')).toBe(true);
   expect(canPlaceBid('5', 7)).toBe(true);
   expect(canPlaceBid('7', 7)).toBe(false);
-  expect(canPlaceBid('8', 7)).toBe(false);
+  expect(canPlaceBid('8', 7)).toBe(true);
   expect(canPlaceBid('1', 1)).toBe(false);
   for (const text of ['', '0', '-1', '2.5', '9007199254740992']) expect(canPlaceBid(text)).toBe(false);
 });

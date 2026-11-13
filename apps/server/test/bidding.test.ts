@@ -74,7 +74,9 @@ test.each([2, 6])('%i players bid independently; reductions preserve first prior
     expect(execute(storage, room, 0, first).outcome.status).toBe('accepted');
     for (let i = 1; i < count; i++) expect(execute(storage, room, i, request(room, 7 + i), 1000).outcome.status).toBe('accepted');
     expect(execute(storage, room, 0, request(room, 7), 2000).outcome).toEqual({ status: 'no-op', reason: 'same-bid' });
-    expect(execute(storage, room, 0, request(room, 8), 2000).outcome).toEqual({ status: 'rejected', reason: 'bid-increase' });
+    const increase = request(room, 8);
+    expect(execute(storage, room, 0, increase, 2000).outcome.status).toBe('accepted');
+    expect(execute(storage, room, 0, increase, 2001).duplicate).toBe(true);
     expect(execute(storage, room, 1, request(room, 5), 3000).outcome.status).toBe('accepted');
     expect(execute(storage, room, 0, request(room, 5), 4000).outcome.status).toBe('accepted');
     const bidding = storedRoom(storage)!;
@@ -83,7 +85,10 @@ test.each([2, 6])('%i players bid independently; reductions preserve first prior
     expect(expireBidding(storage, 61000)).toBe(true);
     const demo = storedRoom(storage)!;
     if (demo.match?.state.phase !== 'demonstrating') throw new Error('Expected demonstration');
-    expect(demo.match.state.bidderQueue.map((b) => b.seatId)).toEqual(room.state.players.map((p) => p.seatId));
+    expect(demo.match.state.bidderQueue.map((b) => b.seatId)).toEqual([
+      room.state.players[1].seatId, room.state.players[0].seatId,
+      ...room.state.players.slice(2).map((p) => p.seatId),
+    ]);
     expect(demo.match.state.attempt.robots).toEqual(room.match!.state.officialRobots);
     expect(demo.match.state.attempt.moves).toEqual([]);
     expect(demo.match.state.scores).toEqual(room.match!.state.scores);

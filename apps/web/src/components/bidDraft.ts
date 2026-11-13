@@ -20,7 +20,7 @@ export function parseBidDraft(text: string): number | null {
 /** UI guard only; T11 still validates every submitted command. */
 export function canPlaceBid(text: string, acceptedBid?: number): boolean {
   const value = parseBidDraft(text);
-  return value !== null && (acceptedBid === undefined || value < acceptedBid);
+  return value !== null && value !== acceptedBid;
 }
 
 export function bidDraftReducer(draft: BidDraft, action: BidDraftAction): BidDraft {

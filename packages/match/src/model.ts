@@ -30,7 +30,7 @@ export interface MatchRound {
 export interface MatchBid {
   readonly seatId: SeatId;
   readonly value: number;
-  /** Assigned once; lowering a bid never changes this ordering. */
+  /** Current tie-priority rank. Increases move to last; reductions preserve priority. */
   readonly firstAcceptedOrder: number;
 }
 

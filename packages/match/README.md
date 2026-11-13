@@ -121,11 +121,13 @@ shuffles no targets, and performs no solver search. Tests use supplied time.
 
 First accepted bid creates `deadlineAtMs = nowMs + 60_000`. Any roster player may
 bid any positive safe integer regardless of other players' bids. A player can
-lower their own bid, not raise it; an identical own bid is a no-op. No update
-extends the deadline or changes that player's `firstAcceptedOrder`.
+raise or lower their own bid; an identical own bid is a no-op. No update extends
+the deadline. Increases move that player's tie priority to last; reductions keep
+it. `firstAcceptedOrder` stores compact current priority ranks (0–5), reranked
+on increases while preserving other bidders' relative order and wire shape.
 
 At or after the deadline, the reducer freezes final bids ordered by value then
-original first acceptance, creates the first attempt with all round-start
+current tie priority, creates the first attempt with all round-start
 positions and empty history, and drops bidding-only fields. Non-bidders are not
 queued. Expiry changes no score, official position, used target, or round count.
 

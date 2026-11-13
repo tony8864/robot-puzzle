@@ -46,21 +46,23 @@ test('minus is disabled at one, plus works, and a first valid bid can be submitt
   expect(markup).not.toContain('<form');
 });
 
-test('returning player starts from their accepted bid and is prompted to lower it', () => {
+test('returning player can adjust their accepted bid in either direction', () => {
   const markup = render(7);
   expect(markup).toContain('value="7"');
   expect(markup).toContain('Your accepted bid: 7 moves.');
-  expect(markup).toContain('You may lower this bid.');
+  expect(markup).toContain('You may raise or lower this bid. Raising resets tie priority.');
   const buttons = [...markup.matchAll(/<button\b[^>]*>.*?<\/button>/g)].map(([button]) => button);
   expect(buttons[0]).not.toContain('disabled');
-  expect(buttons[1]).toContain('disabled');
+  expect(buttons[1]).not.toContain('disabled');
   expect(buttons[2]).toContain('disabled');
 });
 
-test('accepted minimum bid uses singular units and cannot be lowered or raised', () => {
+test('accepted minimum bid uses singular units and can be raised but not lowered', () => {
   const markup = render(1);
   expect(markup).toContain('Your accepted bid: 1 move.');
-  expect(markup).toContain('This is the minimum bid.');
+  expect(markup).toContain('You may raise or lower this bid.');
   const buttons = [...markup.matchAll(/<button\b[^>]*>.*?<\/button>/g)].map(([button]) => button);
-  expect(buttons.every((button) => button.includes('disabled'))).toBe(true);
+  expect(buttons[0]).toContain('disabled');
+  expect(buttons[1]).not.toContain('disabled');
+  expect(buttons[2]).toContain('disabled');
 });

@@ -36,13 +36,17 @@
 - No movement or board-geometry changes.
 
 ### 3. Bid revisions
-- [ ] Allow players to raise their own bids, not only lower them.
-- This is a proposed rule change, not a correction to the existing rules.
-- Agree on:
-  - Whether revisions are unrestricted while bidding is open.
-  - Tie priority after a revision, especially after raising a bid.
-  - Whether the original deadline remains unchanged.
-- The server must validate revisions and reject bids after closure.
+- [x] Approved: players may raise/lower their own positive safe-integer bid while
+  bidding is open. Increases reset current tie priority behind existing bidders;
+  decreases retain it. Identical bids/retries do not reset priority. First-bid
+  deadline remains fixed; server rejects revisions at/after closure. Preserve the
+  current submission interaction, with no additional confirmation step.
+- Verification: 194 match tests, 414 shared-contract tests, 125 frontend bidding/
+  roster/client tests and 41 server bidding/socket tests passed. Two browser
+  scenarios passed: revision/reconnect/deadline and the real 60-second round flow
+  through demonstration, rollback, carry-forward and host Continue. Match/server/
+  E2E typechecks, frontend build (including web typechecks), and whitespace check
+  passed. Existing wire/storage shape retained through compact priority ranks.
 
 ### 4. End bidding early
 - [ ] Provide a way to avoid waiting when players agree the solution is trivial.
