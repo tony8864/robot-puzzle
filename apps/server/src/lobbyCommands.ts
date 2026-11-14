@@ -10,6 +10,7 @@ import { queuedPreparation } from './roomPreparation';
 import { advanceStoredBidding, withBiddingState, withAttemptState, projectStoredMatch, type StoredMatch } from './storedMatch';
 import { closeRoom, expireEmptyRoom, terminalRoom } from './roomTerminal';
 import { biddingWindowMs, type BiddingEnvironment } from './biddingPolicy';
+import { normalizeAttemptPresence } from './attemptPresence';
 
 export function storedRoom(storage: DurableObjectStorage): StoredRoom | null {
   const row = storage.sql.exec<{ value: string }>('SELECT value FROM room_state WHERE singleton = 1').toArray()[0];
@@ -191,6 +192,58 @@ export function executeLobbyCommand(
         } else if (next.outcome.status === 'rejected' && (next.outcome.reason === 'not-active-bidder' || next.outcome.reason === 'bid-limit')) {
           outcome = { status: 'rejected', reason: next.outcome.reason };
         } else throw new Error('Invalid attempt outcome');
+      }
+    }
+    else if (input.command.type === 'bidding.requestEnd' || input.command.type === 'bidding.cancelEnd') {
+      if (seatId !== state.hostSeatId) outcome = { status: 'rejected', reason: 'not-host' };
+      else if (state.status !== 'playing' || state.match.phase !== 'bidding') outcome = { status: 'rejected', reason: 'wrong-phase' };
+      else if (!('roundNumber' in input.context) || input.context.matchId !== state.match.matchId ||
+        input.context.roundNumber !== state.match.round.number) outcome = { status: 'rejected', reason: 'stale-context' };
+      else if (input.command.type === 'bidding.requestEnd') {
+        if (state.match.earlyEndRequest) outcome = { status: 'rejected', reason: 'stale-context' };
+        else if (nowMs < (state.match.earlyEndAvailableAtMs ?? 0)) outcome = { status: 'rejected', reason: 'bidding-request-cooldown' };
+        else {
+          const { earlyEndAvailableAtMs: _cooldown, ...match } = state.match;
+          nextState = { ...state, revision: state.revision + 1, match: { ...match,
+            earlyEndRequest: { requestId: input.commandId, requestedBySeatId: seatId, agreedSeatIds: [seatId] } } };
+          outcome = { status: 'accepted' };
+        }
+      } else if (state.match.earlyEndRequest?.requestId !== input.command.requestId) outcome = { status: 'rejected', reason: 'stale-context' };
+      else {
+        const { earlyEndRequest: _cancelled, ...match } = state.match;
+        nextState = { ...state, revision: state.revision + 1, match };
+        outcome = { status: 'accepted' };
+      }
+    }
+    else if (input.command.type === 'bidding.voteEnd') {
+      const match = state.status === 'playing' && state.match.phase === 'bidding' ? state.match : null;
+      const request = match?.earlyEndRequest;
+      if (!match || !saved.match || saved.match.state.phase !== 'bidding') outcome = { status: 'rejected', reason: 'wrong-phase' };
+      else if (!('roundNumber' in input.context) || input.context.matchId !== match.matchId ||
+        input.context.roundNumber !== match.round.number || !request || request.requestId !== input.command.requestId) outcome = { status: 'rejected', reason: 'stale-context' };
+      else {
+        const agreed = request.agreedSeatIds ?? [request.requestedBySeatId];
+        if (seatId === state.hostSeatId || agreed.includes(seatId)) outcome = { status: 'rejected', reason: 'stale-context' };
+        else if (!input.command.agree) {
+          const { earlyEndRequest: _declined, ...rest } = match;
+          nextState = { ...state, status: 'playing', revision: state.revision + 1,
+            match: { ...rest, earlyEndAvailableAtMs: nowMs + 10_000 } };
+          outcome = { status: 'accepted' };
+        } else {
+          const agreedSeatIds = [...agreed, seatId];
+          if (state.players.every((player) => agreedSeatIds.includes(player.seatId))) {
+            // All seats count, including non-bidders and offline players. Never
+            // fabricate an expired deadline or use client-supplied time/identity.
+            const next = transitionMatch(saved.match.state, { source: 'controller', context: { nowMs }, command: { type: 'bidding.endEarly' } });
+            if (next.outcome.status !== 'accepted' || next.state.phase !== 'demonstrating') throw new Error('Invalid unanimous closure');
+            nextRoom = normalizeAttemptPresence(withBiddingState(saved, next.state), nowMs);
+            nextState = nextRoom.state;
+          } else {
+            nextState = { ...state, status: 'playing', revision: state.revision + 1,
+              match: { ...match, earlyEndRequest: { ...request, agreedSeatIds } } };
+          }
+          outcome = { status: 'accepted' };
+        }
       }
     }
     else if (input.command.type === 'bid.submit') {

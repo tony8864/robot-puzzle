@@ -728,6 +728,41 @@ body {
   min-width: 0;
 }
 
+.player-bidding-request {
+  flex: none;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #3A5272;
+  border-radius: 10px;
+  background: #182A44;
+  color: #A8BED8;
+  font-size: 13px;
+}
+.player-bidding-request h2 { display: flex; align-items: center; gap: 8px; margin: 0; color: #e8f0fa; font-size: 16px; }
+.player-bidding-request h2 svg { flex: none; color: #FFD166; }
+.player-bidding-request p { margin: 0; line-height: 1.4; }
+.player-bidding-request__count { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.player-bidding-request__count strong { color: #e8f0fa; font-variant-numeric: tabular-nums; }
+.player-bidding-request__progress { height: 6px; overflow: hidden; border-radius: 3px; background: #213754; }
+.player-bidding-request__progress span { display: block; height: 100%; background: #FFD166; }
+.player-bidding-request__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.player-bidding-request__actions button { min-height: 48px; padding: 8px; border: 1px solid #3A5272; border-radius: 10px; background: #213754; color: #e8f0fa; font: inherit; font-weight: 600; cursor: pointer; }
+.player-bidding-request__actions .player-bidding-request__agree { border-color: #FFD166; background: #FFD166; color: #111F35; }
+.player-bidding-request__actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+.player-bidding-request__actions button:focus-visible { outline: 2px solid #4da3ff; outline-offset: 2px; }
+.player-bidding-request__actions button:active:not(:disabled) { filter: brightness(1.1); }
+@media (hover: hover) { .player-bidding-request__actions button:hover:not(:disabled) { filter: brightness(1.1); } }
+.player-bidding-request__waiting { display: grid; gap: 6px; font-size: 12px; }
+.player-bidding-request__waiting p:first-child { display: flex; align-items: center; gap: 6px; color: #e8f0fa; }
+.player-bidding-request__waiting svg { flex: none; color: #4DD4A0; }
+.player-bidding-request__waiting span { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.host-bidding-request { background: #111F35; }
+.host-bidding-request .player-bidding-request__progress { background: #263852; }
+.host-bidding-request .player-bidding-request__actions { grid-template-columns: minmax(0, 1fr); }
+.host-bidding-request .player-bidding-request__actions button { display: flex; align-items: center; justify-content: center; gap: 8px; height: 48px; }
+
 .bidding-countdown {
   display: flex;
   justify-content: flex-end;

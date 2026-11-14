@@ -68,6 +68,27 @@ test('real create/prepare/first bid opens one absolute 60-second window', () => 
   expect(thinking).not.toHaveProperty('bids');
 });
 
+test('trusted unanimous closure uses the same bidder ordering, positions and scores as natural expiry', () => {
+  let state = bidding(bid(ready(), 'maria', 7).state);
+  state = bidding(bid(state, 'alex', 5).state);
+  state = bidding(bid(state, 'teo', 5).state);
+  const early = transitionMatch(state, { source: 'controller', context: { nowMs: 2000 }, command: { type: 'bidding.endEarly' } });
+  expect(early.outcome.status).toBe('accepted');
+  expect(early.state).toEqual(tick(state, state.deadlineAtMs).state);
+  expect(state.deadlineAtMs).toBe(61000);
+  expect(transitionMatch(early.state, { source: 'controller', context: { nowMs: 2001 }, command: { type: 'bidding.endEarly' } }).outcome)
+    .toEqual({ status: 'rejected', reason: 'wrong-phase' });
+});
+
+test('early closure is rejected outside bidding and cannot be supplied as a player command', () => {
+  const state = ready();
+  expect(transitionMatch(state, { source: 'controller', context: { nowMs: 2000 }, command: { type: 'bidding.endEarly' } }).outcome)
+    .toEqual({ status: 'rejected', reason: 'wrong-phase' });
+  const open = bidding(bid(state, 'maria', 7).state);
+  const forged = { source: 'player', command: { type: 'bidding.endEarly' }, context: { actorSeatId: 'maria', hostSeatId: 'maria', nowMs: 2000 } } as unknown as MatchAction;
+  expect(transitionMatch(open, forged)).toEqual({ state: open, outcome: { status: 'rejected', reason: 'invalid-command' } });
+});
+
 test.each([1, 7, Number.MAX_SAFE_INTEGER])('accepts any representable positive integer bid: %s', (value) => {
   expect(bid(ready(), 'maria', value).outcome.status).toBe('accepted');
 });

@@ -6,7 +6,8 @@ import { TargetSymbol } from './TargetSymbol';
 
 /** Presentation only: the caller retains phase permissions and confirmation. */
 export function MatchSidebar({ round, phase, boardName, targetLabel, targetColor, targetSymbol,
-  roomCode, connectionLabel, isConnected = false, recovery, countdown, onSkip, skipDisabled = false, onLeave, onEnd, endDisabled = false }: {
+  roomCode, connectionLabel, isConnected = false, recovery, countdown, onSkip, skipDisabled = false,
+  showEndBiddingEarly = false, onEndBiddingEarly, endBiddingEarlyPending = false, onLeave, onEnd, endDisabled = false }: {
   readonly round: number;
   readonly phase: string;
   readonly boardName: string;
@@ -20,6 +21,9 @@ export function MatchSidebar({ round, phase, boardName, targetLabel, targetColor
   readonly countdown?: ReactNode;
   readonly onSkip?: () => void;
   readonly skipDisabled?: boolean;
+  readonly showEndBiddingEarly?: boolean;
+  readonly onEndBiddingEarly?: () => void;
+  readonly endBiddingEarlyPending?: boolean;
   readonly onLeave?: () => void;
   readonly onEnd?: () => void;
   readonly endDisabled?: boolean;
@@ -32,7 +36,9 @@ export function MatchSidebar({ round, phase, boardName, targetLabel, targetColor
       </div>
       <div className="active-match-header__actions">
         <RoomCode code={roomCode} compact />
-        <MatchActions onSkip={onSkip} skipDisabled={skipDisabled} onLeave={onLeave} onEnd={onEnd} endDisabled={endDisabled} />
+        <MatchActions onSkip={onSkip} skipDisabled={skipDisabled} showEndBiddingEarly={showEndBiddingEarly}
+          onEndBiddingEarly={onEndBiddingEarly} endBiddingEarlyPending={endBiddingEarlyPending}
+          onLeave={onLeave} onEnd={onEnd} endDisabled={endDisabled} />
       </div>
     </div>
     <div className="active-match-header__bottom">

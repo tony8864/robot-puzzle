@@ -40,6 +40,12 @@ export interface PreparationRetryMetadata {
   readonly preparationId: string;
   readonly availableAtMs: number;
 }
+export interface PublicEarlyEndRequest {
+  readonly requestId: string;
+  readonly requestedBySeatId: string;
+  /** Absent on retained request-only snapshots; the host is their sole agreement. */
+  readonly agreedSeatIds?: readonly string[];
+}
 interface PublicMatchBase {
   readonly matchId: string;
   readonly scores: Readonly<Record<string, number>>;
@@ -49,7 +55,8 @@ interface PublicMatchBase {
 export type PublicMatch = PublicMatchBase & (
   | { readonly phase: 'preparing'; readonly completedRounds: UnfinishedRoundCount; readonly preparation: { readonly status: PublicPreparationStatus; readonly retry?: PreparationRetryMetadata } }
   | { readonly phase: 'thinking'; readonly completedRounds: UnfinishedRoundCount; readonly round: PublicRound }
-  | { readonly phase: 'bidding'; readonly completedRounds: UnfinishedRoundCount; readonly round: PublicRound; readonly bids: NonEmptyBids; readonly deadlineAtMs: number }
+  | { readonly phase: 'bidding'; readonly completedRounds: UnfinishedRoundCount; readonly round: PublicRound; readonly bids: NonEmptyBids; readonly deadlineAtMs: number;
+      readonly earlyEndRequest?: PublicEarlyEndRequest; readonly earlyEndAvailableAtMs?: number }
   | { readonly phase: 'demonstrating'; readonly completedRounds: UnfinishedRoundCount; readonly round: PublicRound; readonly bidderQueue: NonEmptyBids; readonly activeBidderIndex: number; readonly attempt: PublicAttempt;
       /** Missing only on retained pre-T17.4 snapshots; never grants skip permission. */
       readonly disconnect?: PublicAttemptDisconnect | null }

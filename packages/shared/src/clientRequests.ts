@@ -51,6 +51,9 @@ export type GameplayRoomRequest =
   | RoomEnvelope<{ readonly type: 'room.start'; readonly boardId: string }, LobbyContext>
   | RoomEnvelope<{ readonly type: 'preparation.retry' }, PreparationContext>
   | RoomEnvelope<Extract<PlayerMatchCommand, { type: 'bid.submit' }>, RoundContext>
+  | RoomEnvelope<{ readonly type: 'bidding.requestEnd' }, RoundContext>
+  | RoomEnvelope<{ readonly type: 'bidding.cancelEnd'; readonly requestId: string }, RoundContext>
+  | RoomEnvelope<{ readonly type: 'bidding.voteEnd'; readonly requestId: string; readonly agree: boolean }, RoundContext>
   | RoomVariants<Extract<PlayerMatchCommand, { type: 'attempt.move' | 'attempt.undo' | 'attempt.reset' | 'attempt.giveUp' }>, AttemptContext>
   | RoomEnvelope<{ readonly type: 'attempt.skipDisconnected'; readonly confirmed: boolean }, AttemptContext & { readonly disconnectId: string }>
   | RoomEnvelope<Extract<PlayerMatchCommand, { type: 'round.skip' }>, RoundContext>
@@ -58,7 +61,7 @@ export type GameplayRoomRequest =
   | RoomEnvelope<{ readonly type: 'match.returnToLobby' }, MatchContext>;
 
 export type LegacyRoomRequest = GameplayRoomRequest extends infer Request
-  ? Request extends GameplayRoomRequest ? Request extends { command: { type: 'attempt.skipDisconnected' | 'room.end' } } ? never
+  ? Request extends GameplayRoomRequest ? Request extends { command: { type: 'attempt.skipDisconnected' | 'room.end' | 'bidding.requestEnd' | 'bidding.cancelEnd' | 'bidding.voteEnd' } } ? never
     : Omit<Request, 'version'> & { readonly version: 1 } : never : never;
 export type RoomRequest = GameplayRoomRequest | RoomEnvelope<{
   readonly type: 'command.retry'; readonly originalRequest: LegacyRoomRequest;

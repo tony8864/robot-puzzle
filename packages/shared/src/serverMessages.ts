@@ -7,7 +7,7 @@ export const PUBLIC_REJECTION_REASONS = [
   'wrong-phase', 'not-host', 'not-active-bidder', 'confirmation-required', 'invalid-bid',
   'bid-increase', 'bidding-closed', 'bid-limit', 'match-finished', 'stale-context',
   'not-enough-players', 'preview-changed', 'command-id-conflict', 'preparation-cooldown', 'retry-not-found',
-  'bidder-connected', 'disconnect-grace-active',
+  'bidder-connected', 'disconnect-grace-active', 'bidding-request-cooldown',
   'room-closed', 'room-expired',
 ] as const;
 export const BOOTSTRAP_REJECTION_REASONS = [

@@ -43,6 +43,9 @@ export interface LiveLobbyClient {
   readonly start: () => void;
   readonly retryPreparation: () => void;
   readonly placeBid: (value: number) => void;
+  readonly requestEndBidding: () => void;
+  readonly cancelEndBidding: () => void;
+  readonly voteEndBidding: (requestId: string, agree: boolean) => void;
   readonly move: (robotId: RobotId, direction: Direction) => void;
   readonly undo: () => void;
   readonly reset: () => void;
@@ -132,7 +135,7 @@ export function liveLobbyClient(input: RoomEnteredMessage, overrides: Partial<De
     preparation: actionType() === 'preparation.retry' ? value : 'idle',
     bid: actionType() === 'bid.submit' ? value : 'idle',
     attempt: actionType()?.startsWith('attempt.') ? value : 'idle',
-    round: actionType() === 'round.skip' || actionType() === 'round.continue' ? value : 'idle',
+    round: actionType() === 'round.skip' || actionType() === 'round.continue' || actionType()?.startsWith('bidding.') ? value : 'idle',
     rematch: actionType() === 'match.returnToLobby' ? value : 'idle',
     end: actionType() === 'room.end' ? value : 'idle',
   });
@@ -259,6 +262,7 @@ export function liveLobbyClient(input: RoomEnteredMessage, overrides: Partial<De
     const starting = pending!.request.command.type === 'room.start';
     const preparing = pending!.request.command.type === 'preparation.retry';
     const progressing = pending!.request.command.type.startsWith('round.');
+    const requestingEarlyEnd = pending!.request.command.type.startsWith('bidding.');
     const returning = pending!.request.command.type === 'match.returnToLobby';
     const skippingAttempt = pending!.request.command.type === 'attempt.skipDisconnected';
     const ending = pending!.request.command.type === 'room.end';
@@ -271,8 +275,9 @@ export function liveLobbyClient(input: RoomEnteredMessage, overrides: Partial<De
       attemptFeedback: result.outcome.status === 'no-op' ? result.outcome.reason === 'blocked-move' ? 'That robot cannot move in that direction.'
         : result.outcome.reason === 'empty-undo' ? 'There are no moves to undo.' : result.outcome.reason === 'already-reset' ? 'The attempt is already at its starting positions.' : '' : '',
       actionError: result.outcome.status === 'rejected'
-      ? result.outcome.reason === 'not-host' ? ending ? 'Only the host can end the room.' : skippingAttempt ? 'Only the host can skip a disconnected attempt.' : returning ? 'Only the host can return everyone to the lobby.' : progressing ? 'Only the host can advance or skip the round.' : preparing ? 'Only the host can retry preparation.' : starting ? 'Only the host can start the match.' : 'Only the host can shuffle the board.'
+      ? result.outcome.reason === 'not-host' ? ending ? 'Only the host can end the room.' : requestingEarlyEnd ? 'Only the host can request or cancel ending bidding early.' : skippingAttempt ? 'Only the host can skip a disconnected attempt.' : returning ? 'Only the host can return everyone to the lobby.' : progressing ? 'Only the host can advance or skip the round.' : preparing ? 'Only the host can retry preparation.' : starting ? 'Only the host can start the match.' : 'Only the host can shuffle the board.'
         : result.outcome.reason === 'preparation-cooldown' ? 'Preparation retry is not ready yet. Wait briefly and try again.'
+        : result.outcome.reason === 'bidding-request-cooldown' ? 'Wait 10 seconds after a decline before requesting again.'
         : result.outcome.reason === 'bid-increase' ? 'This server does not accept bid increases. Refresh after the server is updated.'
         : result.outcome.reason === 'bidding-closed' ? 'Bidding has closed.'
         : result.outcome.reason === 'invalid-bid' ? 'Enter a positive whole-number bid.'
@@ -385,6 +390,7 @@ export function liveLobbyClient(input: RoomEnteredMessage, overrides: Partial<De
       : pending?.request.command.type === 'room.start' ? 'The Start reply is delayed. Retry the same request; a second match will not be created.'
       : pending?.request.command.type === 'preparation.retry' ? 'The preparation reply is delayed. Retry the same request; another job will not be created.'
       : pending?.request.command.type === 'bid.submit' ? 'The bid reply is delayed. Retry the same request to check its outcome.'
+      : pending?.request.command.type.startsWith('bidding.') ? 'The early-end request reply is delayed. Retry the same request to check its outcome.'
       : pending?.request.command.type.startsWith('attempt.') ? 'The attempt reply is delayed. Retry the same request to check its outcome; do not repeat the action.'
       : pending?.request.command.type.startsWith('round.') ? 'The round reply is delayed. Retry the same request; the round will not advance twice.'
       : pending?.request.command.type === 'match.returnToLobby' ? 'The New Match reply is delayed. Retry the same request; the lobby will not be recreated twice.'
@@ -435,6 +441,41 @@ export function liveLobbyClient(input: RoomEnteredMessage, overrides: Partial<De
       if (!parsed.ok || !('roomId' in parsed.value)) throw new Error('Invalid attempt request');
       pending = { request: parsed.value };
     } catch { publish({ actionError: 'The attempt request could not be prepared. Please try again.' }); return; }
+    sendAction();
+  }
+
+  function submitEarlyEnd(type: 'bidding.requestEnd' | 'bidding.cancelEnd') {
+    const room = state.room;
+    if (!ready() || pending || room.hostSeatId !== entry.seatId || room.status !== 'playing' ||
+      room.match.phase !== 'bidding' || !state.bidWindowOpen || getServerNow() >= room.match.deadlineAtMs) return;
+    const request = room.match.earlyEndRequest;
+    if (type === 'bidding.requestEnd' ? request !== undefined : request === undefined) return;
+    if (type === 'bidding.requestEnd' && getServerNow() < (room.match.earlyEndAvailableAtMs ?? 0)) {
+      publish({ actionError: 'Wait 10 seconds after a decline before requesting again.' }); return;
+    }
+    try {
+      const parsed = parseClientRequest({ version: PROTOCOL_VERSION, commandId: deps.commandId(), roomId: entry.roomId,
+        context: { matchId: room.match.matchId, roundNumber: room.match.round.number },
+        command: type === 'bidding.cancelEnd' ? { type, requestId: request!.requestId } : { type } });
+      if (!parsed.ok || !('roomId' in parsed.value)) throw new Error('Invalid early-end request');
+      pending = { request: parsed.value };
+    } catch { publish({ actionError: 'The early-end request could not be prepared. Please try again.' }); return; }
+    sendAction();
+  }
+
+  function voteEndBidding(requestId: string, agree: boolean) {
+    const room = state.room;
+    if (!ready() || pending || room.hostSeatId === entry.seatId || room.status !== 'playing' ||
+      room.match.phase !== 'bidding' || !state.bidWindowOpen || getServerNow() >= room.match.deadlineAtMs) return;
+    const request = room.match.earlyEndRequest;
+    if (!request || request.requestId !== requestId || (request.agreedSeatIds ?? [request.requestedBySeatId]).includes(entry.seatId)) return;
+    try {
+      const parsed = parseClientRequest({ version: PROTOCOL_VERSION, commandId: deps.commandId(), roomId: entry.roomId,
+        context: { matchId: room.match.matchId, roundNumber: room.match.round.number },
+        command: { type: 'bidding.voteEnd', requestId, agree } });
+      if (!parsed.ok || !('roomId' in parsed.value)) throw new Error('Invalid early-end vote');
+      pending = { request: parsed.value };
+    } catch { publish({ actionError: 'Your vote could not be prepared. Please try again.' }); return; }
     sendAction();
   }
 
@@ -562,6 +603,9 @@ export function liveLobbyClient(input: RoomEnteredMessage, overrides: Partial<De
     start: () => submit('room.start'),
     retryPreparation: () => submit('preparation.retry'),
     placeBid: (value) => submit('bid.submit', value),
+    requestEndBidding: () => submitEarlyEnd('bidding.requestEnd'),
+    cancelEndBidding: () => submitEarlyEnd('bidding.cancelEnd'),
+    voteEndBidding,
     move: (robotId, direction) => submitAttempt({ type: 'attempt.move', robotId, direction }),
     undo: () => submitAttempt({ type: 'attempt.undo' }),
     reset: () => submitAttempt({ type: 'attempt.reset' }),

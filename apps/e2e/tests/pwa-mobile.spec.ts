@@ -372,7 +372,20 @@ test('entry, live board, menus, attempt controls and results retain square geome
     await expect(page.getByRole('timer')).toHaveCount(1);
     await expectMatchSidebar(page, size.width >= 1024);
     await expectMatchColumns(page, size.width >= 1280);
+    await page.getByRole('button', { name: 'More actions', exact: true }).click();
+    const earlyClosure = page.getByRole('button', { name: 'End bidding early', exact: true });
+    await expect(earlyClosure).toBeVisible();
+    await expect(earlyClosure).toBeEnabled();
+    if (size.width >= 1280) {
+      await page.screenshot({ path: info.outputPath('desktop-early-closure-menu.png') });
+    } else await page.screenshot({ path: info.outputPath(`mobile-early-closure-menu-${size.width}.png`) });
+    await page.keyboard.press('Escape');
   }
+  await guestPage.setViewportSize({ width: 1280, height: 800 });
+  await guestPage.getByRole('button', { name: 'More actions', exact: true }).click();
+  await expect(guestPage.getByRole('button', { name: 'End bidding early', exact: true })).toHaveCount(0);
+  await expect(guestPage.getByRole('button', { name: 'Leave Room', exact: true })).toBeVisible();
+  await guestPage.keyboard.press('Escape');
   const bidding = host.room()!;
   if (bidding.status !== 'playing' || bidding.match.phase !== 'bidding') throw new Error('Expected bidding');
   await advanceServer(environment, bidding.roomId, bidding.match.deadlineAtMs + 1, [host, guest]);

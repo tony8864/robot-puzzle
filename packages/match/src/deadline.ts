@@ -1,11 +1,15 @@
 import { createAttempt } from '@robot-puzzle/game-engine';
 import { copyRobots } from './data';
-import type { MatchState, NonEmptyBids } from './model';
+import type { BiddingMatchState, DemonstratingMatchState, MatchState, NonEmptyBids } from './model';
 
 /** Shared normalization for all future handlers. Caller validates authoritative time. */
 export function normalizeBiddingDeadline(state: MatchState, nowMs: number): MatchState {
   if (state.phase !== 'bidding' || nowMs < state.deadlineAtMs) return state;
+  return closeBidding(state);
+}
 
+/** Shared entry into demonstration for deadline expiry and authorized unanimity. */
+export function closeBidding(state: BiddingMatchState): DemonstratingMatchState {
   const sorted = state.bids
     .map(({ seatId, value, firstAcceptedOrder }) => ({ seatId, value, firstAcceptedOrder }))
     .sort((first, second) => first.value - second.value || first.firstAcceptedOrder - second.firstAcceptedOrder);

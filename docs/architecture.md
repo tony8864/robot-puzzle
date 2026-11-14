@@ -110,7 +110,7 @@ credentials, identity mappings, history and solver data; parsing invokes no solv
 
 ```text
 Lobby --host Start--> Preparing --verified target--> Thinking
-Thinking --first accepted bid--> Bidding --server deadline--> Demonstrating
+Thinking --first accepted bid--> Bidding --deadline or unanimous agreement--> Demonstrating
 Thinking --confirmed host Skip---------------------------> Round Result
 Demonstrating --failure--> next bidder, or Round Result if queue exhausted
 Demonstrating --success---------------------------------> Round Result
@@ -127,6 +127,24 @@ their own bid. Increases move their priority behind current bidders; decreases
 preserve priority. The existing `firstAcceptedOrder` field stores compact current
 ranks (0–5), retaining the wire/storage shape and supporting unlimited revisions
 without an ever-growing counter. Exact command retries never reset priority.
+During Bidding, the host may create/cancel a durable early-end request through
+round-bound commands. Room owns its optional public snapshot metadata; the pure
+match state is unchanged. Cancellation also binds to the exact request ID, so a
+delayed cancel cannot remove a replacement. Accepted bid changes and natural
+expiry clear the request. Request-bound non-host votes persist agreed seat IDs;
+each seat votes once and all seats count, including offline players/non-bidders.
+The host counts first. Decline clears agreements and persists a 10-second request
+cooldown through bid changes; the original deadline continues. The final agreement
+atomically invokes a controller-only early-close operation, sharing demonstration
+entry with natural expiry without changing the clock/deadline or bid ordering.
+Attempt identity and offline-bidder grace begin at the actual closure time.
+PlayerBiddingRequestPanel and the host status card read snapshots and appear
+inline on desktop/mobile, below bids and above the roster. The host card shows
+live agreement progress and the existing Cancel action. The host's More Actions
+menu offers End bidding early during open Bidding at all viewport widths.
+Retained request-only
+records without agreed IDs count only the host. Deploy compatible web and server
+code together and reload old tabs before using this snapshot extension.
 For local manual testing only, `APP_ENV=local` may set
 `LOCAL_BIDDING_WINDOW_SECONDS` (1–60) when the first bid creates the persisted
 deadline. Production ignores it; shared match rules and existing deadlines remain

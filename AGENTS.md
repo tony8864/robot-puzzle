@@ -40,6 +40,7 @@ If these documents conflict, **product rules win**. Explain the conflict and ask
 - Ten rounds per match; each round reveals a target solvable from the **current official robot positions**.
 - During thinking/bidding, players see a read-only board; no interactive simulation.
 - The first accepted bid starts a **60-second server-authoritative bidding window**.
+- The host may request early closure. Every seated player, including offline players and non-bidders, must agree; the host counts first. Each other player may vote once. An accepted new/changed bid or host cancellation clears the request. Decline clears it and starts a 10-second request cooldown. The original deadline continues until unanimous closure.
 - **Every player may submit any positive integer bid regardless of other players' bids.** A player may raise or lower their *own* bid. No new or revised bids after the window closes; revisions never extend the deadline.
 - Demonstration order: lowest final bid first. Initial bids establish tie priority; increasing moves the player behind all current bidders, while lowering preserves their current priority.
 - Only the active bidder may move robots during a demonstration. No demonstration timer.

@@ -20,6 +20,23 @@ const create = (nickname: unknown) => bootstrap({ type: 'room.create', nickname 
 const join = (roomCode: unknown, nickname: unknown = 'Maria') => bootstrap({ type: 'room.join', roomCode, nickname });
 const rejected = (value: unknown) => expect(parseClientRequest(value)).toEqual({ ok: false, error: 'invalid-message' });
 
+test('early bidding requests bind to a round and cancellation binds to the exact request', () => {
+  for (const command of [{ type: 'bidding.requestEnd' }, { type: 'bidding.cancelEnd', requestId: commandId },
+    { type: 'bidding.voteEnd', requestId: commandId, agree: true }, { type: 'bidding.voteEnd', requestId: commandId, agree: false }]) {
+    const source = room(command);
+    expect(parseClientRequest(source)).toEqual({ ok: true, value: source });
+    for (const context of [{ matchId }, { ...round, roundNumber: 0 }, { ...round, roundNumber: 11 }, { ...round, actorSeatId: commandId }]) rejected(room(command, context));
+    rejected(room({ ...command, nowMs: 1 }));
+    rejected({ ...source, version: 2, command: { type: 'command.retry', originalRequest: { ...source, version: 1 } }, context: {} });
+  }
+  rejected(room({ type: 'bidding.cancelEnd' }));
+  rejected(room({ type: 'bidding.cancelEnd', requestId: 'invalid' }));
+  for (const agree of [undefined, null, 'true', 1]) rejected(room({ type: 'bidding.voteEnd', requestId: commandId, agree }));
+  rejected(room({ type: 'bidding.voteEnd', requestId: 'invalid', agree: true }));
+  rejected(room({ type: 'bidding.voteEnd', requestId: commandId, agree: true, seatId: commandId }));
+  rejected(room({ type: 'bidding.endEarly' }));
+});
+
 test('End Room accepts exactly a lobby or match binding and explicit boolean confirmation, never actor/time authority', () => {
   for (const context of [{ lobbyId }, { matchId }]) {
     const request = room({ type: 'room.end', confirmed: true }, context);

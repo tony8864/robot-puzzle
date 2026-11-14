@@ -17,6 +17,8 @@ import { MatchActions } from './MatchActions';
 import { LeaveRoomDialog } from './LeaveRoomDialog';
 import { DisconnectedAttemptPanel } from './DisconnectedAttemptPanel';
 import { EndRoomDialog } from './EndRoomDialog';
+import { PlayerBiddingRequestPanel } from './PlayerBiddingRequestPanel';
+import { HostBiddingRequestPanel } from './HostBiddingRequestPanel';
 
 export function ConnectedLobby({ entry, client, onTerminal, onLeave }: { readonly entry: RoomEnteredMessage; readonly client?: LiveLobbyClient;
   readonly onLeave?: () => void;
@@ -105,6 +107,9 @@ export function ConnectedLobby({ entry, client, onTerminal, onLeave }: { readonl
           recovery={!connected ? status : undefined}
           countdown={match.phase === 'bidding' ? <ConnectedBiddingCountdown deadlineAtMs={match.deadlineAtMs} getServerNow={flow.getServerNow} /> : undefined}
           onSkip={thinking && isHost ? flow.skipRound : undefined} skipDisabled={!connected || unresolved} onLeave={requestLeave}
+          showEndBiddingEarly={bidding && isHost && state.bidWindowOpen}
+          onEndBiddingEarly={flow.requestEndBidding}
+          endBiddingEarlyPending={!!(match.phase === 'bidding' && match.earlyEndRequest) || !connected || unresolved}
           onEnd={requestEnd} endDisabled={!connected || unresolved} />
           : <LobbyHeader boardName={state.room.puzzle.name} roomCode={state.room.roomCode}
             connectionLabel={connected ? `${state.room.players.filter((player) => player.connected).length} online` : state.message}
@@ -121,6 +126,13 @@ export function ConnectedLobby({ entry, client, onTerminal, onLeave }: { readonl
           <BidCard key={`${match?.matchId}:${match && 'round' in match ? match.round.number : 0}:${entry.seatId}`}
             disabled={!connected || unresolved || !state.bidWindowOpen} pending={state.bid === 'pending'} acceptedBid={bid} onPlaceBid={flow.placeBid} />
           {bidding && !state.bidWindowOpen && <p className="connected-lobby__notice">Waiting for the server to close bidding.</p>}
+          {match?.phase === 'bidding' && match.earlyEndRequest && (isHost ? state.bidWindowOpen && <HostBiddingRequestPanel
+            agreedCount={match.earlyEndRequest.agreedSeatIds?.length ?? 1} playerCount={state.room.players.length}
+            disabled={!connected || unresolved} onCancel={flow.cancelEndBidding} /> : <PlayerBiddingRequestPanel key={match.earlyEndRequest.requestId}
+            agreedCount={match.earlyEndRequest.agreedSeatIds?.length ?? 1} playerCount={state.room.players.length}
+            hasAgreed={match.earlyEndRequest.agreedSeatIds?.includes(entry.seatId) ?? false}
+            disabled={!connected || unresolved || !state.bidWindowOpen} pending={state.round === 'pending'}
+            onVote={(agree) => flow.voteEndBidding(match.earlyEndRequest!.requestId, agree)} />)}
           <PlayerRoster variant="bids" players={state.room.players} bids={match?.phase === 'bidding' ? match.bids : []} currentSeatId={entry.seatId} />
         </div> : demonstrating && match?.phase === 'demonstrating' ? !activeConnected
           ? <DisconnectedAttemptPanel key={`${match.attempt.id}:${match.disconnect?.disconnectId ?? 'waiting'}`}

@@ -6,6 +6,19 @@ import { MatchSidebar } from './MatchSidebar';
 const props = { round: 2, phase: 'Thinking', boardName: 'Switchback', targetLabel: 'Green crescent',
   targetColor: 'var(--color-robot-green)', roomCode: 'V9KQH5', connectionLabel: '2 online' };
 
+test.each([false, true])('early-closure action forwards the pending state (%s) and keeps destructive actions separate', (pending) => {
+  const request = vi.fn();
+  const markup = renderToStaticMarkup(<MatchSidebar {...props} phase="Bidding" showEndBiddingEarly
+    onEndBiddingEarly={request} endBiddingEarlyPending={pending} onEnd={() => {}} />);
+  const action = markup.match(/<button[^>]*class="match-actions__early-bidding"[^>]*>.*?<\/button>/)![0];
+  expect(action.includes('disabled')).toBe(pending);
+  expect(action).toContain('<svg');
+  expect(action).toContain('End bidding early');
+  expect(markup.indexOf('End bidding early')).toBeLessThan(markup.indexOf('role="separator"'));
+  expect(markup.indexOf('role="separator"')).toBeLessThan(markup.indexOf('End Room'));
+  expect(request).not.toHaveBeenCalled();
+});
+
 test('mobile header keeps phase and code/actions first, then inline board/target and presence', () => {
   const skip = vi.fn();
   const markup = renderToStaticMarkup(<MatchSidebar {...props} onSkip={skip} />);

@@ -2,9 +2,13 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 
 /** Administrative actions only; callers own permissions and confirmation. */
-export function MatchActions({ onSkip, skipDisabled = false, onLeave, onEnd, endDisabled = false }: {
+export function MatchActions({ onSkip, skipDisabled = false, showEndBiddingEarly = false,
+  onEndBiddingEarly, endBiddingEarlyPending = false, onLeave, onEnd, endDisabled = false }: {
   readonly onSkip?: () => void;
   readonly skipDisabled?: boolean;
+  readonly showEndBiddingEarly?: boolean;
+  readonly onEndBiddingEarly?: () => void;
+  readonly endBiddingEarlyPending?: boolean;
   readonly onLeave?: () => void;
   readonly onEnd?: () => void;
   readonly endDisabled?: boolean;
@@ -28,7 +32,7 @@ export function MatchActions({ onSkip, skipDisabled = false, onLeave, onEnd, end
       document.removeEventListener('keydown', escape);
     };
   }, [open]);
-  if (!onSkip && !onLeave && !onEnd) return null;
+  if (!onSkip && !showEndBiddingEarly && !onLeave && !onEnd) return null;
   const select = (action: () => void) => {
     flushSync(() => setOpen(false));
     trigger.current?.focus();
@@ -44,16 +48,27 @@ export function MatchActions({ onSkip, skipDisabled = false, onLeave, onEnd, end
       </svg>
     </button>
     <div id={id} className="match-actions__panel" hidden={!open} role="group" aria-label="Match actions">
+      {showEndBiddingEarly && <button type="button" className="match-actions__early-bidding"
+        disabled={!onEndBiddingEarly || endBiddingEarlyPending}
+        title={!onEndBiddingEarly ? 'Preview only: early bidding closure is not available yet.' : undefined}
+        onClick={() => { if (onEndBiddingEarly && !endBiddingEarlyPending) select(onEndBiddingEarly); }}>
+        <svg className="match-actions__skip-icon" width="16" height="16" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          aria-hidden="true" focusable="false"><path d="m3 5 8 7-8 7V5Zm10 0 8 7-8 7V5Z" /></svg>
+        End bidding early
+      </button>}
       {onSkip && <button type="button" disabled={skipDisabled} onClick={() => select(onSkip)}>
         <svg className="match-actions__skip-icon" width="16" height="16" viewBox="0 0 24 24"
           fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
           aria-hidden="true" focusable="false"><path d="m5 4 12 8-12 8V4Z" /><path d="M19 4v16" /></svg>Skip Round
       </button>}
-      {onLeave && <button type="button" onClick={() => select(onLeave)}>
+      {onLeave && <>
+        {showEndBiddingEarly && <div className="match-actions__separator" role="separator" />}
+        <button type="button" onClick={() => select(onLeave)}>
         <svg className="match-actions__leave-icon" width="16" height="16" viewBox="0 0 24 24"
           fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
           aria-hidden="true" focusable="false"><path d="M9 5H4v14h5M14 8l4 4-4 4M8 12h10" /></svg>Leave Room
-      </button>}
+      </button></>}
       {onEnd && <>
         <div className="match-actions__separator" role="separator" />
         <button type="button" className="match-actions__end" disabled={endDisabled} onClick={() => select(onEnd)}>

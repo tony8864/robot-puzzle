@@ -27,7 +27,8 @@ function parseRoom(value: Record<string, unknown>, command: Record<string, unkno
       if (Reflect.ownKeys(original.command).some((key) => {
         const descriptor = Object.getOwnPropertyDescriptor(original.command, key);
         return typeof key !== 'string' || !descriptor?.enumerable || !('value' in descriptor);
-      }) || original.command.type === 'command.retry' || original.command.type === 'attempt.skipDisconnected' || original.command.type === 'room.end') return undefined;
+      }) || original.command.type === 'command.retry' || original.command.type === 'attempt.skipDisconnected' || original.command.type === 'room.end' ||
+        original.command.type === 'bidding.requestEnd' || original.command.type === 'bidding.cancelEnd' || original.command.type === 'bidding.voteEnd') return undefined;
       const parsed = parseRoom({ ...original, version: PROTOCOL_VERSION }, original.command);
       if (!parsed || parsed.command.type === 'command.retry' || parsed.commandId !== base.commandId || parsed.roomId !== base.roomId) return undefined;
       return { ...base, context: {}, command: { type: 'command.retry', originalRequest: { ...parsed, version: 1 } as LegacyRoomRequest } };
@@ -53,6 +54,21 @@ function parseRoom(value: Record<string, unknown>, command: Record<string, unkno
         exactKeys(context, ['matchId', 'preparationId']) && isId(context.matchId) && isId(context.preparationId)
         ? { ...base, context: { matchId: context.matchId, preparationId: context.preparationId }, command: { type: 'preparation.retry' } }
         : undefined;
+    }
+    case 'bidding.requestEnd': {
+      const context = roundContext(value.context);
+      return context && exactKeys(command, ['type'])
+        ? { ...base, context, command: { type: 'bidding.requestEnd' } } : undefined;
+    }
+    case 'bidding.cancelEnd': {
+      const context = roundContext(value.context);
+      return context && exactKeys(command, ['type', 'requestId']) && isId(command.requestId)
+        ? { ...base, context, command: { type: 'bidding.cancelEnd', requestId: command.requestId } } : undefined;
+    }
+    case 'bidding.voteEnd': {
+      const context = roundContext(value.context);
+      return context && exactKeys(command, ['type', 'requestId', 'agree']) && isId(command.requestId) && typeof command.agree === 'boolean'
+        ? { ...base, context, command: { type: 'bidding.voteEnd', requestId: command.requestId, agree: command.agree } } : undefined;
     }
     case 'bid.submit': {
       const context = roundContext(value.context);

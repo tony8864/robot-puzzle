@@ -31,13 +31,14 @@ function parseOutcome(value: unknown, roster: readonly PublicPlayer[], scores: R
   check(item.kind === 'all-bidders-gave-up' || item.kind === 'no-bid-skip');
   return { kind: item.kind };
 }
-function parseMatch(value: unknown, board: PublicPuzzle, roster: readonly PublicPlayer[]): PublicMatch {
+function parseMatch(value: unknown, board: PublicPuzzle, roster: readonly PublicPlayer[], hostSeatId: string): PublicMatch {
   const item = record(value);
   let extra: readonly string[];
   switch (item.phase) {
     case 'preparing': extra = ['preparation']; break;
     case 'thinking': extra = ['round']; break;
-    case 'bidding': extra = ['round', 'bids', 'deadlineAtMs']; break;
+    case 'bidding': extra = ['round', 'bids', 'deadlineAtMs', ...(item.earlyEndRequest === undefined ? [] : ['earlyEndRequest']),
+      ...(item.earlyEndAvailableAtMs === undefined ? [] : ['earlyEndAvailableAtMs'])]; break;
     case 'demonstrating': extra = ['round', 'bidderQueue', 'activeBidderIndex', 'attempt', ...(item.disconnect === undefined ? [] : ['disconnect'])]; break;
     case 'round-result': extra = ['round', 'outcome']; break;
     case 'finished': extra = []; break;
@@ -83,10 +84,25 @@ function parseMatch(value: unknown, board: PublicPuzzle, roster: readonly Public
   check(sameRobots(base.officialRobots, round.startRobots));
   const count = unfinished(completedRounds);
   if (item.phase === 'thinking') return { ...base, phase: 'thinking', completedRounds: count, round };
-  if (item.phase === 'bidding') return {
-    ...base, phase: 'bidding', completedRounds: count, round,
-    bids: bids(item.bids, roster, false), deadlineAtMs: integer(item.deadlineAtMs),
-  };
+  if (item.phase === 'bidding') {
+    let earlyEndRequest;
+    if (item.earlyEndRequest !== undefined) {
+      const raw = record(item.earlyEndRequest);
+      const request = fields(raw, ['requestId', 'requestedBySeatId', ...(raw.agreedSeatIds === undefined ? [] : ['agreedSeatIds'])]);
+      const requestedBySeatId = id(request.requestedBySeatId);
+      check(requestedBySeatId === hostSeatId);
+      const agreedSeatIds = request.agreedSeatIds === undefined ? undefined : list(request.agreedSeatIds, 1, roster.length - 1).map(id);
+      if (agreedSeatIds) check(agreedSeatIds[0] === hostSeatId && new Set(agreedSeatIds).size === agreedSeatIds.length &&
+        agreedSeatIds.every((seatId) => roster.some((player) => player.seatId === seatId)));
+      check(item.earlyEndAvailableAtMs === undefined);
+      earlyEndRequest = { requestId: id(request.requestId), requestedBySeatId, ...(agreedSeatIds ? { agreedSeatIds } : {}) };
+    }
+    return { ...base, phase: 'bidding', completedRounds: count, round,
+      bids: bids(item.bids, roster, false), deadlineAtMs: integer(item.deadlineAtMs),
+      ...(earlyEndRequest ? { earlyEndRequest } : {}),
+      ...(item.earlyEndAvailableAtMs === undefined ? {} : { earlyEndAvailableAtMs: integer(item.earlyEndAvailableAtMs) }),
+    };
+  }
   const bidderQueue = bids(item.bidderQueue, roster, true);
   const activeBidderIndex = integer(item.activeBidderIndex, 0, bidderQueue.length - 1);
   const attempt = fields(item.attempt, ['id', 'version', 'robots', 'moveCount']);
@@ -129,7 +145,7 @@ export function parsePublicRoomState(value: unknown): PublicStateResult {
     let state: PublicRoomState;
     if (item.status === 'lobby') state = { ...base, status: 'lobby', lobbyId: id(item.lobbyId) };
     else {
-      const match = parseMatch(item.match, board, roster);
+      const match = parseMatch(item.match, board, roster, hostSeatId);
       if (item.status === 'finished') { check(match.phase === 'finished'); state = { ...base, status: 'finished', match }; }
       else { check(match.phase !== 'finished'); state = { ...base, status: 'playing', match }; }
     }

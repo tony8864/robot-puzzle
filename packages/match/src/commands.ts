@@ -38,6 +38,8 @@ export type RoundPreparationOptions = Pick<RoundSetupInput, 'candidateOrder' | '
 /** Internal operations are distinct from commands a player may request. */
 export type ControllerMatchCommand =
   | { readonly type: 'time.advance' }
+  /** Room must first verify unanimous agreement from every seated player. */
+  | { readonly type: 'bidding.endEarly' }
   | { readonly type: 'round.advance' }
   /** The authoritative caller must first prove disconnect/host eligibility. */
   | { readonly type: 'attempt.abandon' }

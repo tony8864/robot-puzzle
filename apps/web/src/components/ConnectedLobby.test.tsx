@@ -28,7 +28,7 @@ function render(connection: LobbyState['connection'] = 'connected', guest = fals
     shuffle: 'idle', start: 'idle', preparation: 'idle', bid: 'idle', attempt: 'idle', round: 'idle', rematch: 'idle', end: 'idle', attemptFeedback: '', boardEpoch: 0, bidWindowOpen: true, canRetryPreparation: false, actionError: '', ...changes };
   const client: LiveLobbyClient = { getSnapshot: () => state, subscribe: () => () => {},
     connect: vi.fn(), disconnect: vi.fn(), leave: vi.fn(() => true), shuffle: vi.fn(), start: vi.fn(), retry: vi.fn(), retryPreparation: vi.fn(), placeBid: vi.fn(),
-    move: vi.fn(), undo: vi.fn(), reset: vi.fn(), giveUp: vi.fn(), skipDisconnected: vi.fn(), skipRound: vi.fn(), continueRound: vi.fn(), returnToLobby: vi.fn(), endRoom: vi.fn(), getServerNow: () => 100 };
+    requestEndBidding: vi.fn(), cancelEndBidding: vi.fn(), voteEndBidding: vi.fn(), move: vi.fn(), undo: vi.fn(), reset: vi.fn(), giveUp: vi.fn(), skipDisconnected: vi.fn(), skipRound: vi.fn(), continueRound: vi.fn(), returnToLobby: vi.fn(), endRoom: vi.fn(), getServerNow: () => 100 };
   const onLeave = vi.fn();
   return { markup: renderToStaticMarkup(<ConnectedLobby entry={entry} client={client} onLeave={onLeave} />), client, onLeave };
 }
@@ -89,6 +89,78 @@ function twoPlayers() {
   const entry = roomEnteredFixture(entryTestId(1), 'Player');
   return { ...entry.state, players: [...entry.state.players.map((p) => ({ ...p, connected: true })), { seatId: entryTestId(111), nickname: 'Guest', connected: true }] };
 }
+
+test('early bidding request is host-only and limited to open bidding', () => {
+  const room = biddingRoomFixture(twoPlayers(), [7, 5]);
+  const { markup, client } = render('connected', false, { room });
+  expect(markup).toContain('class="match-actions__early-bidding"');
+  expect(markup).not.toContain('class="match-actions__early-bidding" disabled=""');
+  expect(markup).not.toContain('Preview only:');
+  expect(client.requestEndBidding).not.toHaveBeenCalled();
+  expect(client.placeBid).not.toHaveBeenCalled();
+  for (const changes of [
+    { room: { ...room, hostSeatId: entryTestId(111) } },
+    { room, bidWindowOpen: false },
+    { room: twoPlayers() },
+    { room: thinkingRoomFixture(twoPlayers()) },
+    { room: demonstratingRoomFixture(twoPlayers()) },
+    { room: roundResultRoomFixture(twoPlayers()) },
+  ]) expect(render('connected', false, changes).markup).not.toContain('End bidding early');
+});
+
+test('pending request shows the host status card and cancel; player voting stays separate', () => {
+  const room = biddingRoomFixture(twoPlayers(), [7, 5]);
+  if (room.status !== 'playing' || room.match.phase !== 'bidding') throw new Error('Expected bidding');
+  const pending = { ...room, match: { ...room.match, earlyEndRequest: { requestId: entryTestId(701), requestedBySeatId: room.hostSeatId } } };
+  const host = render('connected', false, { room: pending }).markup;
+  expect(host).toContain('class="match-actions__early-bidding" disabled=""');
+  expect(host).toContain('The countdown continues.');
+  expect(host).toContain('Your agreement is counted');
+  expect(host).toContain('aria-valuemax="2" aria-valuenow="1"');
+  expect(host).toContain('Cancel request');
+  expect(host.indexOf('class="bid-card"')).toBeLessThan(host.indexOf('aria-label="Early bidding request"'));
+  const guest = render('connected', true, { room: { ...pending, hostSeatId: entryTestId(111) } }).markup;
+  expect(guest).toContain('The host wants to end the countdown early. Do you agree?');
+  expect(guest).toContain('Agree to end');
+  expect(guest).toContain('Decline');
+  expect(guest).not.toContain('Cancel request');
+  expect(host).not.toContain('role="dialog"');
+});
+
+test('host status card follows server agreement counts and disappears when bidding closes or the request ends', () => {
+  const room = biddingRoomFixture({ ...twoPlayers(), players: [...twoPlayers().players, { seatId: entryTestId(112), nickname: 'Third', connected: false }] }, [7]);
+  if (room.status !== 'playing' || room.match.phase !== 'bidding') throw new Error('Expected bidding');
+  const pending = { ...room, match: { ...room.match, earlyEndRequest: { requestId: entryTestId(701),
+    requestedBySeatId: room.hostSeatId, agreedSeatIds: [room.hostSeatId, entryTestId(111)] } } };
+  const markup = render('connected', false, { room: pending }).markup;
+  expect(markup).toContain('aria-valuemax="3" aria-valuenow="2"');
+  expect(markup).not.toContain('>Agree to end</button>');
+  const busy = render('connected', false, { room: pending, round: 'pending' }).markup;
+  expect(busy).toContain('<button type="button" disabled=""><svg');
+  for (const changes of [{ room }, { room: pending, bidWindowOpen: false }, { room: demonstratingRoomFixture(twoPlayers()) }]) {
+    expect(render('connected', false, changes).markup).not.toContain('Your agreement is counted');
+  }
+});
+
+test('accepted player agreements replace voting with waiting; offline or unresolved actions disable voting', () => {
+  const room = biddingRoomFixture(twoPlayers(), [7, 5]);
+  if (room.status !== 'playing' || room.match.phase !== 'bidding') throw new Error('Expected bidding');
+  const guestSeat = room.players[0].seatId;
+  const pending = { ...room, hostSeatId: entryTestId(111), match: { ...room.match,
+    earlyEndRequest: { requestId: entryTestId(701), requestedBySeatId: entryTestId(111), agreedSeatIds: [entryTestId(111)] } } };
+  for (const changes of [{}, { connection: 'disconnected' as const }, { round: 'pending' as const }, { bidWindowOpen: false }]) {
+    const markup = render(changes.connection ?? 'connected', true, { room: pending, ...changes }).markup;
+    const buttons = [...markup.matchAll(/<button\b[^>]*>.*?<\/button>/g)].map(([button]) => button).filter((button) => button.includes('>Decline<') || button.includes('>Agree to end<'));
+    expect(buttons).toHaveLength(2);
+    expect(buttons.every((button) => button.includes('disabled'))).toBe(Object.keys(changes).length > 0);
+  }
+  const agreed = { ...pending, match: { ...pending.match, earlyEndRequest: { ...pending.match.earlyEndRequest, agreedSeatIds: [entryTestId(111), guestSeat] } } };
+  const markup = render('connected', true, { room: agreed }).markup;
+  expect(markup).toContain('You agreed to end bidding early');
+  expect(markup).toContain('Waiting for other players');
+  expect(markup).not.toContain('>Agree to end</button>');
+  expect(markup).not.toContain('>Decline</button>');
+});
 
 test('two-seat host can start; pending Start disables both actions and retry keeps its own label', () => {
   const buttons = (markup: string) => [...markup.matchAll(/<button\b[^>]*>.*?<\/button>/g)].map(([button]) => button);

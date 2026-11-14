@@ -67,6 +67,21 @@ export function projectStoredMatch(room: PublicRoomState, match: StoredMatch): P
             ? { disconnect: room.match.disconnect } : {}) })
       : state.phase === 'demonstrating' ? { ok: false as const } : projectMatchState({ ...common, match: state });
   check(projected.ok);
+  // Coordination is room-owned. Changed bids clear agreements; a decline's
+  // cooldown remains in force for the same bidding window even if bids change.
+  const next = projected.value;
+  if (room.status === 'playing' && room.match.phase === 'bidding' &&
+    next.status === 'playing' && next.match.phase === 'bidding' &&
+    room.match.matchId === next.match.matchId && room.match.round.number === next.match.round.number &&
+    room.match.deadlineAtMs === next.match.deadlineAtMs) {
+    const request = room.match.earlyEndRequest;
+    return { ...next, match: { ...next.match,
+      ...(request && canonicalJson(room.match.bids) === canonicalJson(next.match.bids) ? { earlyEndRequest: {
+        ...request, ...(request.agreedSeatIds ? { agreedSeatIds: [...request.agreedSeatIds] } : {}),
+      } } : {}),
+      ...(room.match.earlyEndAvailableAtMs === undefined ? {} : { earlyEndAvailableAtMs: room.match.earlyEndAvailableAtMs }),
+    } };
+  }
   return projected.value;
 }
 

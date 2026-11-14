@@ -84,6 +84,9 @@ This document does not establish intellectual-property clearance.
 - Other players may submit bids during that countdown.
 - Players may **raise or lower** their own existing bid. Keep the current submission interaction without an additional confirmation step.
 - Bidding closes at the server deadline; no new or revised bid is accepted at or after it. Revising a bid never restarts or extends the window.
+- The host may request **End bidding early** during the countdown. Every seated player must agree, including offline players and non-bidders; the host's request counts as their agreement. Each non-host may agree or decline once per request. Unanimous agreement closes bidding immediately using the same demonstration order and round-start positions as normal expiry.
+- The host may cancel a pending request. An accepted new or changed bid also cancels it; identical bids do not. A decline cancels it for everyone and starts a 10-second cooldown before another host request. The original countdown continues while waiting and after cancellation/decline; expiry removes the request and closes bidding normally. Reconnection restores accepted agreements from the server.
+- The player request appears inline below YOUR BID and above PLAYER BIDS on desktop and mobile, without a modal or automatic scrolling. It shows agreement progress and Decline / Agree to end; after agreeing, keep a compact waiting status until the request ends. Host presentation is separate.
 - Demonstration order is ascending by final bid count. First bids establish tie priority; an **increase resets the player's priority behind all current bidders**. Reductions and identical submissions preserve their current priority. A later first bid goes behind current bidders.
 - If nobody bids, the host may skip the round (with confirmation). No point is awarded.
 
@@ -166,9 +169,9 @@ details belong in [architecture](architecture.md), not an open product backlog.
 - **Hosted operation:** solver resource use, general hosted limits and deployed-version identification remain unverified as described in [deployment](deployment.md).
 - **Wider distribution:** branding and legal review remain separate from this requirements baseline.
 
-Release additions, including early bidding closure and discussion
-tools, remain proposals in [next release](next-release.md). This cleanup does not
-approve them or certify deployment/device behavior.
+Early bidding closure is approved above. Remaining release additions, including
+discussion tools, are tracked in [next release](next-release.md). Documentation
+and local verification do not certify deployment/device behavior.
 
 ## 16. Acceptance scenarios
 

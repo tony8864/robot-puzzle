@@ -49,12 +49,81 @@
   passed. Existing wire/storage shape retained through compact priority ranks.
 
 ### 4. End bidding early
-- [ ] Provide a way to avoid waiting when players agree the solution is trivial.
-- Agree on:
-  - Who may request early closure.
-  - Whether other players must consent.
-  - What happens to accepted bids and simultaneous submissions.
-- Preserve a server-authoritative deadline and demonstration order.
+- Approved flow: host requests via ⋯; every player must agree (including offline
+  players). Host counts as the first agreement and may cancel. Any accepted new
+  or changed bid cancels the request. A decline cancels it and starts a 10-second
+  request cooldown. The original server deadline continues until unanimous closure.
+- Use a passive inline notice below bid controls, before the player list; no
+  popup, animation or automatic scrolling. Host sees progress/cancel; others
+  see Agree to end / Decline, then waiting status after agreement.
+- [x] Desktop UI first step: disabled host-only “End bidding early” menu entry
+  during open bidding, labelled as a preview via tooltip. No actions sent and no
+  timer changes. Hidden on mobile; other menu actions unchanged.
+  Verification: 65 component tests, 2 responsive browser tests, Web/E2E typechecks
+  (web via build), production build and whitespace check passed. Desktop menu
+  screenshot reviewed; host/phase visibility and guest/mobile absence checked.
+- [ ] Refine the host notice design separately; player panel implementation below.
+- Menu refinement: fast-forward icon, existing destructive-action divider, and
+  optional request callback/pending flag. This initially retained the disabled
+  preview; the shared-state step below supersedes it. Host retains End Room;
+  guest Leave Room permissions/appearance unchanged.
+  Refinement verification: 67 component tests, frontend typecheck/build and
+  whitespace check passed.
+- [x] Shared-state step: host-only request/cancel commands during Bidding,
+  runtime-validated round context, durable snapshot metadata and exact-command
+  retries. Cancellation includes the request ID to protect replacement requests.
+  Accepted new/changed bids and natural expiry clear it; unchanged bids/retries
+  preserve it. The desktop menu initiates the request and disables while pending;
+  a minimal passive notice below bids exposes host Cancel. No player votes,
+  decline cooldown or early closure yet; the original deadline continues.
+  Mobile menu/notice remain hidden pending separate layout review. Existing
+  snapshots without request metadata remain readable; web/server compatibility
+  and reloading old tabs are required before using the extension.
+  Verification: 416 shared, 47 server bidding/socket and 166 client/component
+  tests passed; relevant workspace typechecks passed after correcting a new test
+  helper's types. Three browser cases passed: shared request/cancel/reload,
+  unchanged deadline/natural expiry, and existing offline/responsive coverage.
+  Desktop pending-notice screenshot reviewed; whitespace check passed.
+- [x] Player panel and voting: non-host inline panel below YOUR BID and above
+  PLAYER BIDS on desktop/mobile, side-by-side Decline / Agree to end buttons,
+  live count/progress and compact accepted-agreement waiting status. Existing
+  host notice/menu appearance is unchanged. Server validates request/round/seat,
+  accepts one vote per non-host and counts the host automatically. All seated
+  players (including offline/non-bidders) must agree, as reconfirmed by the owner;
+  the later “connected players” wording does not change this rule. Final agreement
+  enters demonstration atomically through the existing closure path. Decline
+  cancels for everyone and enforces the approved 10-second request cooldown.
+  Bids, cancellation, expiry, reconnects and exact retries retain their rules.
+  Verification: workspace typechecks, 196 match, 417 shared, 269 server-runtime
+  and 203 client/component/recovery tests passed. Five browser cases passed
+  across targeted runs: request/cancel/expiry, three-player agreement/reload and
+  early closure, decline/cooldown, and existing offline/responsive coverage.
+  The three-player test uses the real roster label and explicitly advances the
+  controlled preparation alarm when an earlier test has advanced the clock.
+  Desktop/390px/320px screenshots reviewed; buttons stay side by side, no
+  horizontal overflow, normal-flow placement and bottom-aligned desktop roster
+  preserved. Whitespace check passed. Real-device/Safari review remains pending.
+- [x] Host pending status card: replace the plain notice and standalone Cancel
+  button with an inline card below YOUR BID and above PLAYER BIDS on desktop
+  and mobile. Show the yellow fast-forward title, waiting description, live
+  agreement count/6px progress bar, green counted-agreement status and full-width
+  48px Cancel button with X icon. Reuse existing server snapshots/cancellation
+  and player-card styles with host-only overrides; no player-panel or game-rule
+  changes. Hide the host card when the local countdown closes while awaiting
+  the authoritative phase change. Verification: 67 component tests, three
+  multiplayer browser cases and frontend typecheck passed. Reviewed host-card
+  screenshots at 1280px, 390px and 320px: correct placement, 6px bar, full-width
+  48px Cancel, no horizontal overflow; live progress, mobile cancellation,
+  reconnect, natural expiry, decline and unanimous closure checked. Whitespace
+  check passed. Server/game logic and the non-host panel are unchanged.
+- [ ] Review the full feature on physical devices.
+- [x] Mobile host entry correction: remove the obsolete desktop-only CSS rule
+  hiding End bidding early from the host's More Actions menu. The existing
+  host/open-bidding/pending permissions still apply. Browser coverage now starts
+  and cancels requests at phone widths as well as checking responsive visibility.
+  Verification: five multiplayer/offline/responsive browser cases, E2E typecheck
+  and whitespace check passed. Reviewed the 390px host-menu screenshot; the
+  option is visible above End Room. No game logic changed.
 
 ### 5. Post-round discussion
 - [ ] Let players inspect the board and discuss ideas after a round.

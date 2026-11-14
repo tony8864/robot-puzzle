@@ -2,7 +2,7 @@ import { DIRECTIONS, ROBOT_IDS } from '@robot-puzzle/game-engine';
 import type { MatchAction, MatchTransitionResult } from './commands';
 import { advanceRound, skipRound } from './advancement';
 import { submitBid } from './bidding';
-import { normalizeBiddingDeadline } from './deadline';
+import { closeBidding, normalizeBiddingDeadline } from './deadline';
 import { abandonAttempt, handleAttemptCommand } from './demonstration';
 import type { MatchState } from './model';
 import { acceptRoundPreparation } from './preparation';
@@ -25,7 +25,7 @@ function supportedAction(value: unknown): value is MatchAction {
       command.type === 'attempt.reset' || command.type === 'attempt.giveUp';
   }
   if (value.source !== 'controller') return false;
-  return value.command.type === 'time.advance' || value.command.type === 'round.advance' || value.command.type === 'attempt.abandon' || (value.command.type === 'round.prepared' &&
+  return value.command.type === 'time.advance' || value.command.type === 'bidding.endEarly' || value.command.type === 'round.advance' || value.command.type === 'attempt.abandon' || (value.command.type === 'round.prepared' &&
     isRecord(value.command.request) && isRecord(value.command.result));
 }
 
@@ -58,6 +58,8 @@ export function transitionMatch(state: MatchState, action: MatchAction): MatchTr
     if (normalized !== state) return accepted(normalized);
     return noOp(normalized, normalized.phase === 'bidding' ? 'deadline-not-due' : 'no-active-deadline');
   }
+  if (action.command.type === 'bidding.endEarly') return normalized.phase === 'bidding'
+    ? accepted(closeBidding(normalized)) : rejected(normalized, 'wrong-phase');
   if (action.command.type === 'round.advance') return advanceRound(normalized);
   if (action.command.type === 'attempt.abandon') return abandonAttempt(normalized);
   return acceptRoundPreparation(normalized, action.command.request, action.command.result);

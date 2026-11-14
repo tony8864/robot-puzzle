@@ -6,6 +6,90 @@ import { liveLobbyClient, type LiveLobbyClient, type LobbySocketHandlers } from 
 
 const clients: LiveLobbyClient[] = [];
 
+test.each([true, false])('player vote agree=%s is contextual, non-optimistic and retries exactly once per tap', async (agree) => {
+  vi.useFakeTimers();
+  const f = setup(false); const room = biddingRoomFixture(withGuest(f.initialRoom));
+  if (room.status !== 'playing' || room.match.phase !== 'bidding') throw new Error('Expected bidding');
+  const requestId = entryTestId(900);
+  const pending = { ...room, match: { ...room.match, earlyEndRequest: { requestId, requestedBySeatId: room.hostSeatId, agreedSeatIds: [room.hostSeatId] } } };
+  f.client.connect(); f.bind(pending);
+  f.client.voteEndBidding(entryTestId(901), agree); expect(f.sockets[0].sent).toEqual([]);
+  f.client.voteEndBidding(requestId, agree); f.client.voteEndBidding(requestId, !agree);
+  expect(f.sockets[0].sent).toHaveLength(1);
+  const original = f.sockets[0].sent[0];
+  expect(JSON.parse(original)).toMatchObject({ context: { matchId: room.match.matchId, roundNumber: room.match.round.number }, command: { type: 'bidding.voteEnd', requestId, agree } });
+  expect(f.client.getSnapshot()).toMatchObject({ room: pending, round: 'pending' });
+  await vi.advanceTimersByTimeAsync(100); f.client.retry();
+  expect(f.sockets[0].sent).toEqual([original, original]);
+  const accepted = { ...room, revision: room.revision + 1, match: { ...room.match,
+    ...(agree ? { earlyEndRequest: { ...pending.match.earlyEndRequest, agreedSeatIds: [room.hostSeatId, f.entry.seatId] } } : { earlyEndAvailableAtMs: 10100 }),
+  } };
+  f.result(accepted.revision); f.snapshot(accepted);
+  expect(f.client.getSnapshot()).toMatchObject({ room: accepted, round: 'idle' });
+  f.client.voteEndBidding(requestId, true); f.client.voteEndBidding(requestId, false);
+  expect(f.sockets[0].sent).toHaveLength(2);
+});
+
+test.each(['host', 'disconnected', 'closed', 'missing'] as const)('%s cannot submit a player vote', (kind) => {
+  const f = setup(kind === 'host'); const room = biddingRoomFixture(withGuest(f.initialRoom));
+  if (room.status !== 'playing' || room.match.phase !== 'bidding') throw new Error('Expected bidding');
+  const requestId = entryTestId(900);
+  const pending = { ...room, match: { ...room.match, ...(kind === 'missing' ? {} : { earlyEndRequest: { requestId, requestedBySeatId: room.hostSeatId } }) } };
+  f.client.connect(); f.bind(pending);
+  if (kind === 'disconnected') f.client.disconnect();
+  if (kind === 'closed') f.snapshot(pending, room.match.deadlineAtMs);
+  f.client.voteEndBidding(requestId, true); f.client.voteEndBidding(requestId, false);
+  expect(f.sockets[0].sent).toEqual([]);
+});
+
+test('host request honors server cooldown and becomes eligible at the server timestamp', () => {
+  const f = setup(); const room = biddingRoomFixture(withGuest(f.initialRoom));
+  if (room.status !== 'playing' || room.match.phase !== 'bidding') throw new Error('Expected bidding');
+  const cooldown = { ...room, match: { ...room.match, earlyEndAvailableAtMs: 10100 } };
+  f.client.connect(); f.bind(cooldown); f.client.requestEndBidding();
+  expect(f.sockets[0].sent).toEqual([]);
+  expect(f.client.getSnapshot().actionError).toContain('10 seconds');
+  f.snapshot(cooldown, 10100); f.client.requestEndBidding();
+  expect(JSON.parse(f.sockets[0].sent[0]).command.type).toBe('bidding.requestEnd');
+});
+
+test('early-end actions wait for authoritative snapshots and retry the same request without changing the deadline', async () => {
+  vi.useFakeTimers();
+  const f = setup(); const room = biddingRoomFixture(withGuest(f.initialRoom));
+  if (room.status !== 'playing' || room.match.phase !== 'bidding') throw new Error('Expected bidding');
+  f.client.connect(); f.bind(room);
+  f.client.requestEndBidding(); f.client.requestEndBidding();
+  expect(f.sockets[0].sent).toHaveLength(1);
+  const original = f.sockets[0].sent[0]; const request = JSON.parse(original);
+  expect(request).toMatchObject({ command: { type: 'bidding.requestEnd' }, context: { matchId: room.match.matchId, roundNumber: room.match.round.number } });
+  expect(f.client.getSnapshot()).toMatchObject({ room, round: 'pending' });
+  await vi.advanceTimersByTimeAsync(100);
+  expect(f.client.getSnapshot().actionError).toContain('early-end request');
+  f.client.retry(); expect(f.sockets[0].sent).toEqual([original, original]);
+  f.result(room.revision + 1);
+  const pending = { ...room, revision: room.revision + 1, match: { ...room.match,
+    earlyEndRequest: { requestId: request.commandId, requestedBySeatId: room.hostSeatId } } };
+  f.snapshot(pending);
+  expect(f.client.getSnapshot()).toMatchObject({ room: pending, round: 'idle' });
+  f.client.requestEndBidding(); expect(f.sockets[0].sent).toHaveLength(2);
+  f.client.cancelEndBidding();
+  expect(JSON.parse(f.sockets[0].sent[2])).toMatchObject({ command: { type: 'bidding.cancelEnd', requestId: request.commandId } });
+  expect(f.client.getSnapshot().room).toEqual(pending);
+  f.snapshot({ ...room, revision: room.revision + 2 }); f.result(room.revision + 2);
+  expect(f.client.getSnapshot()).toMatchObject({ room: { ...room, revision: room.revision + 2 }, round: 'idle' });
+});
+
+test.each(['guest', 'thinking', 'closed', 'disconnected', 'missing-request'] as const)('%s cannot issue inappropriate early-end actions', (kind) => {
+  const f = setup(kind !== 'guest'); const source = withGuest(f.initialRoom);
+  const room = kind === 'thinking' ? thinkingRoomFixture(source) : biddingRoomFixture(source);
+  f.client.connect(); f.bind(room);
+  if (kind === 'disconnected') f.client.disconnect();
+  if (kind === 'closed' && room.status === 'playing' && room.match.phase === 'bidding') f.snapshot(room, room.match.deadlineAtMs);
+  if (kind !== 'missing-request') f.client.requestEndBidding();
+  f.client.cancelEndBidding();
+  expect(f.sockets[0].sent).toEqual([]);
+});
+
 test.each(['lobby', 'thinking', 'bidding', 'demonstrating', 'round-result', 'finished'] as const)('host End captures current %s context and stops on accepted closure without a fake Finished snapshot', (phase) => {
   const f = setup(); const source = withGuest(f.initialRoom);
   const room = phase === 'lobby' ? source : phase === 'thinking' ? thinkingRoomFixture(source) : phase === 'bidding' ? biddingRoomFixture(source)

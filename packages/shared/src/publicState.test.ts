@@ -50,6 +50,36 @@ if (bidding.phase !== 'bidding') throw new Error('Bidding fixture required.');
 const demonstrating = transitionMatch(bidding, { source: 'controller', context: { nowMs: bidding.deadlineAtMs }, command: { type: 'time.advance' } }).state;
 if (demonstrating.phase !== 'demonstrating') throw new Error('Demonstration fixture required.');
 
+test('early-end metadata is copied, host-owned and limited to Bidding', () => {
+  const room = projected(bidding);
+  if (room.status !== 'playing' || room.match.phase !== 'bidding') throw new Error('Expected bidding');
+  const earlyEndRequest = { requestId: uuid(91), requestedBySeatId: room.hostSeatId };
+  const source = { ...room, match: { ...room.match, earlyEndRequest } };
+  const parsed = value(parsePublicRoomState(source));
+  expect(parsed).toEqual(source);
+  expect(parsed.status === 'playing' && parsed.match.phase === 'bidding' && parsed.match.earlyEndRequest).not.toBe(earlyEndRequest);
+  const agreedSeatIds = [room.hostSeatId, roster[1].seatId];
+  const votes = { ...source, match: { ...source.match, earlyEndRequest: { ...earlyEndRequest, agreedSeatIds } } };
+  const copied = value(parsePublicRoomState(votes));
+  expect(copied).toEqual(votes);
+  expect(copied.status === 'playing' && copied.match.phase === 'bidding' && copied.match.earlyEndRequest?.agreedSeatIds).not.toBe(agreedSeatIds);
+  for (const agreed of [[], [roster[1].seatId], [room.hostSeatId, room.hostSeatId], [room.hostSeatId, uuid(999)], roster.map((p) => p.seatId)]) {
+    invalid({ ...source, match: { ...source.match, earlyEndRequest: { ...earlyEndRequest, agreedSeatIds: agreed } } });
+  }
+  expect(parsePublicRoomState({ ...room, match: { ...room.match, earlyEndAvailableAtMs: 11000 } }).ok).toBe(true);
+  for (const at of [-1, 1.5, '11000']) invalid({ ...room, match: { ...room.match, earlyEndAvailableAtMs: at } });
+  invalid({ ...source, match: { ...source.match, earlyEndAvailableAtMs: 11000 } });
+  for (const malformed of [null, {}, { ...earlyEndRequest, requestId: 'bad' },
+    { ...earlyEndRequest, requestedBySeatId: roster[1].seatId }, { ...earlyEndRequest, deadlineAtMs: 1 }]) {
+    invalid({ ...room, match: { ...room.match, earlyEndRequest: malformed } });
+  }
+  for (const state of [thinking, demonstrating]) {
+    const other = projected(state);
+    if (other.status !== 'playing') throw new Error('Expected playing');
+    invalid({ ...other, match: { ...other.match, earlyEndRequest } });
+  }
+});
+
 test('disconnect metadata is bounded, copied, offline-only and limited to Demonstrating', () => {
   const base = input(demonstrating);
   if (!('attempt' in base)) throw new Error('Expected attempt input');
