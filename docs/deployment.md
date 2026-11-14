@@ -67,6 +67,32 @@ That test uses production config settings and actual backend code with small
 temporary asset fixtures. Existing browser tests cover the real production web
 build separately; neither proves hosted quotas or TLS behavior.
 
+## Local release preflight — 2026-11-14
+
+- Validated source: `24545ae` plus the application-version update to `1.1.0`
+  and test corrections prepared in the release-version commit. The original
+  published `v1.1.0` tag referenced `24545ae` before this update; the owner
+  subsequently requested correcting that release reference to include it.
+- `pnpm test`: 1,598 tests passed, including 269 server-runtime tests and 32
+  separate persistence/recovery/production-config tests. The runner emitted
+  Miniflare alarm/temporary-directory cleanup warnings but exited successfully.
+- `pnpm typecheck` and `pnpm build`: passed. The generated frontend bundle
+  contains version `1.1.0` from `apps/web/package.json`.
+- `pnpm --filter @robot-puzzle/server check:production`: passed and exited at
+  `--dry-run`; bindings remain Registry/Room, `APP_ENV=production` and the intended
+  production Origin. No local countdown override is configured for production.
+- `pnpm test:e2e`: initial full run passed 18/19 cases; recovery's exact
+  `Moves: 1 / 4` text selector was stale after the demonstration header layout
+  change. Updated both assertions to check the visible counter, without changing
+  app behavior. All three recovery cases passed on targeted rerun (19 distinct
+  browser cases validated across runs). E2E typecheck passed again after the fix.
+- `git diff --check`: passed. Version/footer test fixes, the recovery selector
+  correction and these preflight records are grouped in the release-version commit.
+
+These local checks did not upload Worker assets/code, change hosted resources,
+verify account/plan state or deploy the app. Production smoke/device checks and
+deployment approval remain separate steps.
+
 ## Historical preparation evidence
 
 ### Preparation evidence (2026-11-05)

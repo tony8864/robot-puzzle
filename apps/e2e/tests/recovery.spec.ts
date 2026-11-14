@@ -87,7 +87,7 @@ test('lost move reply survives refresh; Leave/return, grace cancel/skip, modal r
   await guestPage.getByRole('button', { name: 'Retry pending request', exact: true }).click();
   await expect.poll(guest.duplicate).toBe(true);
   expect(guest.moves()).toHaveLength(2); expect(guest.moves()[0]).toBe(guest.moves()[1]);
-  await expect(guestPage.getByText('Moves: 1 / 4', { exact: true })).toBeVisible();
+  await expect(guestPage.getByRole('region', { name: 'Demonstration status' }).locator('.demonstration-status__count')).toHaveText('1 / 4');
   await expectRobots([page, guestPage], moved);
   await guestPage.getByRole('button', { name: 'More actions', exact: true }).click();
   await guestPage.getByRole('button', { name: 'Leave Room', exact: true }).click();
@@ -101,7 +101,7 @@ test('lost move reply survives refresh; Leave/return, grace cancel/skip, modal r
   await guestPage.getByRole('button', { name: 'Undo last move', exact: true }).click();
   await expectRobots([page, guestPage], start);
   await guestPage.getByRole('button', { name: `Move selected robot ${move.direction}`, exact: true }).click();
-  await expect(guestPage.getByText('Moves: 1 / 4', { exact: true })).toBeVisible();
+  await expect(guestPage.getByRole('region', { name: 'Demonstration status' }).locator('.demonstration-status__count')).toHaveText('1 / 4');
   await guestContext.setOffline(true); guest.disconnect();
   await expect(guestPage.getByRole('button', { name: `Move selected robot ${move.direction}`, exact: true })).toBeDisabled();
   await expect(page.getByRole('region', { name: 'Disconnected demonstration' })).toBeVisible();

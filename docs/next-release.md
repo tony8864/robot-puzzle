@@ -6,7 +6,10 @@
 - Public app URL: https://robot-puzzle.tonyivanov88.workers.dev
   (HTML shell returned HTTP 200 on 2026-11-11; see `docs/deployment.md` for limits).
 - Confirm git status and recent commits before making changes.
-- The next release number has not been decided.
+- Release preparation: application version `1.1.0`. The original published
+  `v1.1.0` tag pointed to `24545ae`, before the version-label update. The owner
+  requested correcting the release reference to include this update. Deployment
+  still requires separate approval.
 
 ## Working approach
 
@@ -169,6 +172,17 @@
 7. Sound effects, then optional music.
 
 ## Current focus
+
+- [x] Set the package-sourced application version to `1.1.0`; replace stale
+  `v0.1.0` unit/browser assertions with the existing version source. Release
+  preflight passed: 1,598 workspace tests, workspace typechecks, production build,
+  production-config/routing tests and deployment dry run. The full browser run
+  passed 18/19; correct two stale exact-text move-counter assertions and rerun
+  all three recovery cases successfully (19 distinct cases validated across runs).
+  E2E typecheck and whitespace check passed. No game/protocol changes or
+  deployment. Version/test fixes and preflight records form the release-version
+  commit; the owner requested updating the published tag to include it. Detailed
+  evidence is in [deployment](deployment.md).
 
 - [x] Final demonstration spacing: owner's 48px robot row gap and 48px separation
   between robot selectors and D-pad retained for this checkpoint; supersedes

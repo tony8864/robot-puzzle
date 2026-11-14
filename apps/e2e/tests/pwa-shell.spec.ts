@@ -1,10 +1,13 @@
 import { test, expect } from '../support/fixtures';
+import { readFileSync } from 'node:fs';
+
+const appPackage = JSON.parse(readFileSync(new URL('../../web/package.json', import.meta.url), 'utf8')) as { version: string };
 
 test('production manifest and icons are served on entry and direct invite routes without changing entry behavior', async ({ page, context, baseURL }) => {
   for (const path of ['/', '/room/ABC234']) {
     await page.goto(path);
     await expect(page.getByRole('heading', { name: 'Robot Puzzle', exact: true })).toBeVisible();
-    await expect(page.getByRole('contentinfo', { name: 'App version v0.1.0' })).toHaveText('v0.1.0');
+    await expect(page.getByRole('contentinfo', { name: `App version v${appPackage.version}` })).toHaveText(`v${appPackage.version}`);
     await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.webmanifest');
     await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#080F1F');
     await expect(page.locator('meta[name="viewport"]')).toHaveAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover');
