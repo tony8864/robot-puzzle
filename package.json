@@ -5,6 +5,8 @@
   "engines": { "node": ">=20.19.0" },
   "scripts": {
     "dev": "pnpm --filter @robot-puzzle/web dev",
+    "dev:server": "pnpm --filter @robot-puzzle/server dev",
+    "dev:web": "pnpm --filter @robot-puzzle/web dev:https",
     "build": "pnpm --filter @robot-puzzle/web build",
     "preview": "pnpm --filter @robot-puzzle/web preview",
     "typecheck": "pnpm -r typecheck",

@@ -1,10 +1,18 @@
 # Private Cloudflare deployment
 
-Status (2026-11-11): the public root URL serves the Robot Puzzle HTML shell.
-The deployed source revision and Cloudflare deployment/version ID are unverified.
+Status (owner report confirmed 2026-11-15): the owner reports deploying the
+prepared `1.1.0` release. The exact deployment time, hosted source revision and
+Cloudflare deployment/version ID have not been independently verified.
 
 ## Current deployment evidence
 
+- On 2026-11-15, the owner confirmed deployment of the prepared release. Source
+  tag `v1.1.0` was corrected and verified at `ae311d7`, which includes application
+  version `1.1.0`; this identifies the release source, not the hosted deployment.
+  No Cloudflare deployment output/ID or hosted full-match verification was
+  supplied. Future deployments still require separate approval.
+- The observations below are the earlier read-only check from 2026-11-11,
+  retained as historical evidence rather than a fresh hosted verification.
 - A read-only HTTPS GET to `https://robot-puzzle.tonyivanov88.workers.dev/`
   returned HTTP 200 with `Content-Type: text/html`, title `Robot Puzzle`, and
   references to the app's JavaScript, stylesheet, manifest and icons on 2026-11-11.

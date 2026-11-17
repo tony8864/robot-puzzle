@@ -2,14 +2,15 @@
 
 ## Starting point
 
-- Source release baseline: Git tag `v1.0.0`; deployed version unverified.
+- Current source baseline: Git tag `v1.1.0` at `ae311d7`, including the displayed
+  app version `1.1.0`. Previous source baseline: `v1.0.0`.
 - Public app URL: https://robot-puzzle.tonyivanov88.workers.dev
   (HTML shell returned HTTP 200 on 2026-11-11; see `docs/deployment.md` for limits).
 - Confirm git status and recent commits before making changes.
-- Release preparation: application version `1.1.0`. The original published
-  `v1.1.0` tag pointed to `24545ae`, before the version-label update. The owner
-  requested correcting the release reference to include this update. Deployment
-  still requires separate approval.
+- The original published `v1.1.0` tag pointed to `24545ae`; it was corrected to
+  `ae311d7` with approval. On 2026-11-15, the owner confirmed deployment of the
+  prepared release. Hosted revision/deployment ID have not been independently verified;
+  see [deployment](deployment.md). Future deployments require separate approval.
 
 ## Working approach
 
@@ -33,8 +34,9 @@
   measure all label centers against cells; desktop screenshot reviewed.
 
 ### 2. Board colors
-- [ ] Change the central four cells' color.
-- Agree on the exact center-cell color before implementation.
+- [x] Approved blocked center: continuous `#080F1F` 2×2 square with subtle
+  45-degree `#3A5272` stripes and matching thin border; no internal grid lines.
+  Implementation and verification details are retained under Current focus.
 - Keep the current light internal walls, as confirmed by the owner.
 - No movement or board-geometry changes.
 
@@ -65,7 +67,7 @@
   Verification: 65 component tests, 2 responsive browser tests, Web/E2E typechecks
   (web via build), production build and whitespace check passed. Desktop menu
   screenshot reviewed; host/phase visibility and guest/mobile absence checked.
-- [ ] Refine the host notice design separately; player panel implementation below.
+- [x] Refine the host notice design; completed host status-card details below.
 - Menu refinement: fast-forward icon, existing destructive-action divider, and
   optional request callback/pending flag. This initially retained the disabled
   preview; the shared-state step below supersedes it. Host retains End Room;
@@ -272,13 +274,16 @@
 - Audio must not be necessary to understand or play the game.
 
 ### 7. Laptop and responsive layout
-- [ ] Improve laptop presentation and review the existing UI breakpoints.
+- [x] Implement the approved three-column desktop lobby/match layouts, expanded
+  side panels, viewport-constrained square board and desktop coordinates. Detailed
+  breakpoints, sizing decisions and verification are retained under Current focus.
+- [ ] Continue real-device review, especially short laptop windows and Safari.
 - A friend now plays on a laptop; keep phone/tablet play supported as well.
-- Before implementation, inspect current layout rules and obtain the friend's
+- Before further layout changes, inspect current rules and obtain the friend's
   browser viewport size and zoom when available. Identify the actual layout
   problems rather than assuming the laptop model determines the breakpoint.
-- Propose layout and breakpoints based on available width and height, including
-  short laptop windows, before changing CSS.
+- Propose further layout/breakpoint changes based on available width and height,
+  including short laptop windows, before changing CSS.
 - Preserve a square, legible board, accessible controls, and minimum 44px touch
   targets. Coordinate spacing with the new board letters and numbers.
 - Preserve working phone layouts. Do not automatically restore the previously
@@ -296,6 +301,11 @@ Board coordinates/colors, the approved desktop layout, bid revisions and early
 bidding closure are implemented in the `v1.1.0` source baseline.
 
 ## Current focus
+
+- [x] Resume after the owner's deployment report: reconcile the completed center,
+  host-card and desktop-layout checklist entries. Record source tag/commit and
+  distinguish owner-reported deployment from unverified hosted revision/ID.
+  Documentation only; no application changes, new deployment or commit.
 
 - [x] Set the package-sourced application version to `1.1.0`; replace stale
   `v0.1.0` unit/browser assertions with the existing version source. Release
