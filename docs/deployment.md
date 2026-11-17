@@ -75,6 +75,36 @@ That test uses production config settings and actual backend code with small
 temporary asset fixtures. Existing browser tests cover the real production web
 build separately; neither proves hosted quotas or TLS behavior.
 
+## Local release preflight — 1.2.0 candidate (2026-11-17)
+
+Application version `1.2.0` adds post-round Exploration from `1eb24e1`.
+The housekeeping commit is `28d652f`; the version update and this verification
+record are grouped in the release-preparation commit.
+No `v1.2.0` tag, push or deployment has been performed for this candidate.
+
+- `pnpm test`: all 1,637 tests passed, including 276 Worker runtime tests and
+  33 separate persistence/recovery/production-config tests.
+- `pnpm typecheck` and `pnpm build`: passed across the workspace. Built assets
+  contain the `1.2.0` version sourced from `apps/web/package.json`.
+- `pnpm test:e2e`: all 23 browser cases passed in one run, covering independent
+  identities, full matches, Exploration transfers/movement/history, responsive
+  controls, reconnects and PWA update/cache behavior.
+- `pnpm --filter @robot-puzzle/server check:production`: passed and exited at
+  `--dry-run`, with Registry/Room bindings, `APP_ENV=production` and the intended
+  production Origin. No local bidding override is configured for production.
+- `git diff --check`: passed. Runtime alarm, Windows EBUSY cleanup and browser
+  color-environment warnings did not fail the commands. No tooling was upgraded.
+
+These checks used local isolated runtimes. Hosted revision, actual account/plan,
+resource limits and physical Safari behavior have not been verified by this run.
+
+Deploy matching frontend and backend code, then reload old tabs before using
+Exploration. Stored match version 7 includes temporary history and controller
+assignment; version 6 entry-only rooms remain readable and upgrade on mutation.
+Earlier server code cannot restore these new Exploration records. Code rollback
+does not reverse persisted room state; do not assume a code-only rollback is safe
+for rooms that have entered Exploration. Hosted migration/recovery is unverified.
+
 ## Local release preflight — 2026-11-14
 
 - Validated source: `24545ae` plus the application-version update to `1.1.0`

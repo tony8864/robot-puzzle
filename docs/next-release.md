@@ -2,6 +2,9 @@
 
 ## Starting point
 
+- Release candidate: application version `1.2.0`, adding post-round Exploration
+  from feature commit `1eb24e1`. Local release checks passed; this is not a
+  deployed-version claim. Tagging, pushing and deployment remain separate steps.
 - Current source baseline: Git tag `v1.1.0` at `ae311d7`, including the displayed
   app version `1.1.0`. Previous source baseline: `v1.0.0`.
 - Public app URL: https://robot-puzzle.tonyivanov88.workers.dev
@@ -301,6 +304,16 @@ Board coordinates/colors, the approved desktop layout, bid revisions and early
 bidding closure are implemented in the `v1.1.0` source baseline.
 
 ## Current focus
+
+- [x] Prepare `1.2.0`: 1,637 workspace tests (including 276 Worker runtime and
+  33 persistence/recovery/production-config tests), workspace typechecks, production
+  build and all 23 browser cases passed. Production-config dry run passed and
+  exited without upload; bindings/origin remain unchanged, with no local countdown
+  override in production. Built assets contain the package-sourced `1.2.0` label.
+  Whitespace check passed. Runtime alarm/Windows temporary-directory cleanup
+  warnings did not fail the commands. No dependency or infrastructure changes,
+  tag, push or deployment. Physical Safari and hosted behavior remain unverified;
+  see [deployment](deployment.md) for compatibility/rollback limits.
 
 - [x] Resume after the owner's deployment report: reconcile the completed center,
   host-card and desktop-layout checklist entries. Record source tag/commit and
