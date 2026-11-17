@@ -41,7 +41,7 @@ test('full runtime recreation normalizes an overdue persisted lease at its effec
   }
 });
 
-test.each(['queued', 'running', 'error', 'thinking', 'bidding', 'overdue-bidding', 'attempt', 'undo', 'success', 'later-bidder', 'round-result', 'continued', 'finished', 'returned-lobby', 'disconnect-grace', 'skipped-disconnect', 'closed-room', 'empty-overdue'])('full runtime restart preserves %s state and normalizes due work once', async (mode) => {
+test.each(['queued', 'running', 'error', 'thinking', 'bidding', 'overdue-bidding', 'attempt', 'undo', 'success', 'later-bidder', 'round-result', 'exploring', 'continued', 'finished', 'returned-lobby', 'disconnect-grace', 'skipped-disconnect', 'closed-room', 'empty-overdue'])('full runtime restart preserves %s state and normalizes due work once', async (mode) => {
   const bundle = await build({ entryPoints: ['test/preparationRestart.worker.ts'], bundle: true, write: false,
     format: 'esm', platform: 'browser', target: 'es2022', external: ['cloudflare:workers'] });
   const directory = await mkdtemp(join(tmpdir(), 'rr-t15-preparation-'));
@@ -59,6 +59,8 @@ test.each(['queued', 'running', 'error', 'thinking', 'bidding', 'overdue-bidding
   };
   try {
     const before = await read(`/seed?mode=${mode}`);
+    if (mode === 'exploring') expect(before.room.match).toMatchObject({ version: 7, state: { phase: 'exploring',
+      controllerSeatId: before.room.state.players[1].seatId, exploration: { version: 4, moves: [expect.any(Object)] } } });
     if (mode === 'attempt' || mode === 'undo') expect(before.room.match).toMatchObject({ version: 4, state: { phase: 'demonstrating', attempt: { moves: [expect.any(Object)] } }, attempt: { version: 3 } });
     if (mode === 'success') expect(before.room.match).toMatchObject({ version: 4, state: { phase: 'round-result', outcome: { kind: 'success' } } });
     if (mode === 'later-bidder' || mode === 'skipped-disconnect') expect(before.room.match).toMatchObject({ version: 4, state: { phase: 'demonstrating', activeBidderIndex: 1 } });
@@ -92,7 +94,7 @@ test.each(['queued', 'running', 'error', 'thinking', 'bidding', 'overdue-bidding
       expect(restored.room.match!.state.usedTargetIds).toEqual(before.room.match!.state.usedTargetIds);
     } else expect(restored).toEqual(before);
     expect(restored.replays).toEqual(before.replays);
-    if (['attempt', 'undo', 'success', 'later-bidder', 'round-result', 'continued', 'finished', 'returned-lobby', 'disconnect-grace', 'skipped-disconnect'].includes(mode)) {
+    if (['attempt', 'undo', 'success', 'later-bidder', 'round-result', 'exploring', 'continued', 'finished', 'returned-lobby', 'disconnect-grace', 'skipped-disconnect'].includes(mode)) {
       const retried = await read('/replay-attempt');
       expect(retried.replay).toMatchObject({ duplicate: true, changed: false, outcome: { status: 'accepted' } });
       expect(retried.room).toEqual(restored.room);

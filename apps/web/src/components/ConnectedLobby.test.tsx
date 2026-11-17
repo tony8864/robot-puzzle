@@ -28,7 +28,7 @@ function render(connection: LobbyState['connection'] = 'connected', guest = fals
     shuffle: 'idle', start: 'idle', preparation: 'idle', bid: 'idle', attempt: 'idle', round: 'idle', rematch: 'idle', end: 'idle', attemptFeedback: '', boardEpoch: 0, bidWindowOpen: true, canRetryPreparation: false, actionError: '', ...changes };
   const client: LiveLobbyClient = { getSnapshot: () => state, subscribe: () => () => {},
     connect: vi.fn(), disconnect: vi.fn(), leave: vi.fn(() => true), shuffle: vi.fn(), start: vi.fn(), retry: vi.fn(), retryPreparation: vi.fn(), placeBid: vi.fn(),
-    requestEndBidding: vi.fn(), cancelEndBidding: vi.fn(), voteEndBidding: vi.fn(), move: vi.fn(), undo: vi.fn(), reset: vi.fn(), giveUp: vi.fn(), skipDisconnected: vi.fn(), skipRound: vi.fn(), continueRound: vi.fn(), returnToLobby: vi.fn(), endRoom: vi.fn(), getServerNow: () => 100 };
+    requestEndBidding: vi.fn(), cancelEndBidding: vi.fn(), voteEndBidding: vi.fn(), move: vi.fn(), undo: vi.fn(), reset: vi.fn(), giveUp: vi.fn(), skipDisconnected: vi.fn(), skipRound: vi.fn(), continueRound: vi.fn(), startExploration: vi.fn(), assignExplorationControl: vi.fn(), returnToLobby: vi.fn(), endRoom: vi.fn(), getServerNow: () => 100 };
   const onLeave = vi.fn();
   return { markup: renderToStaticMarkup(<ConnectedLobby entry={entry} client={client} onLeave={onLeave} />), client, onLeave };
 }
@@ -356,14 +356,14 @@ test.each(['pending', 'retry'] as const)('result modal keeps host disabled and r
   expect(dialog.includes('Retry pending request')).toBe(round === 'retry');
 });
 
-test('guest result waits for host, final round uses View Results, Preparing never retains the modal', () => {
+test('guest result waits for host, final round keeps Continue, Preparing never retains the modal', () => {
   const result = roundResultRoomFixture(twoPlayers());
   const guest = render('connected', false, { room: { ...result, hostSeatId: entryTestId(111) } }).markup;
   expect(guest).toContain('Waiting for Guest to continue.');
   expect(guest).not.toContain('>Continue</button>');
   const final = render('connected', false, { room: roundResultRoomFixture(twoPlayers(), true) }).markup;
   expect(final).toContain('ROUND 10 COMPLETE');
-  expect(final).toContain('>View Results</button>');
+  expect(final).toContain('>Continue</button>');
   const preparing = render('connected', false, { room: failedPreparationFixture(twoPlayers()) }).markup;
   expect(preparing).not.toContain('<dialog');
   expect(preparing).toContain('Target preparation could not be completed');
@@ -449,4 +449,36 @@ test('lost request can be exactly retried even after Thinking is revealed', () =
   const markup = render('connected', false, { room: thinkingRoomFixture(twoPlayers()), preparation: 'retry' }).markup;
   expect(markup).toContain('Retry pending request');
   expect(markup).not.toContain('>Retry preparation</button>');
+});
+
+test('authoritative Exploration shows host tabs and guest viewing state without results or local assignment', () => {
+  const result = roundResultRoomFixture(twoPlayers());
+  if (result.status !== 'playing' || result.match.phase !== 'round-result') throw new Error('Expected result');
+  const room = { ...result, match: { ...result.match, phase: 'exploring' as const,
+    controllerSeatId: result.hostSeatId, robots: result.match.round.startRobots } };
+  const host = render('connected', false, { room }).markup;
+  expect(host).toContain('>Exploration</h1>');
+  expect(host).toContain('role="tablist"');
+  expect(host).not.toContain('<dialog');
+  const guestRoom = { ...room, hostSeatId: entryTestId(111), match: { ...room.match, controllerSeatId: entryTestId(111) } };
+  const guest = render('connected', false, { room: guestRoom }).markup;
+  expect(guest).toContain('Guest demonstrates');
+  expect(guest).not.toContain('role="tablist"');
+  expect(guest).not.toContain('<dialog');
+});
+
+test('the assigned guest gets movement controls; a host watching another controller has disabled Explore controls', () => {
+  const result = roundResultRoomFixture(twoPlayers());
+  if (result.status !== 'playing' || result.match.phase !== 'round-result') throw new Error('Expected result');
+  const room = { ...result, match: { ...result.match, phase: 'exploring' as const,
+    controllerSeatId: result.hostSeatId, robots: result.match.round.startRobots } };
+  const controller = render('connected', false, { room: { ...room, hostSeatId: entryTestId(111) } }).markup;
+  expect(controller).toContain('aria-label="Exploration controls"');
+  expect(controller).not.toContain('role="tablist"');
+  expect(controller).not.toContain('Give Up');
+  const host = render('connected', false, { room: { ...room, match: { ...room.match, controllerSeatId: entryTestId(111) } } }).markup;
+  const up = host.match(/<button[^>]*aria-label="Move selected robot up"[^>]*>/)![0];
+  expect(up).toContain('disabled');
+  const robot = host.match(/<button[^>]*aria-label="Select red robot"[^>]*>/)![0];
+  expect(robot).toContain('disabled');
 });

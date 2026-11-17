@@ -53,6 +53,8 @@ export interface LiveLobbyClient {
   readonly skipDisconnected: () => void;
   readonly skipRound: () => void;
   readonly continueRound: () => void;
+  readonly startExploration: () => void;
+  readonly assignExplorationControl: (seatId: string) => void;
   readonly returnToLobby: () => void;
   readonly endRoom: () => void;
   readonly getServerNow: () => number;
@@ -134,8 +136,8 @@ export function liveLobbyClient(input: RoomEnteredMessage, overrides: Partial<De
     start: actionType() === 'room.start' ? value : 'idle',
     preparation: actionType() === 'preparation.retry' ? value : 'idle',
     bid: actionType() === 'bid.submit' ? value : 'idle',
-    attempt: actionType()?.startsWith('attempt.') ? value : 'idle',
-    round: actionType() === 'round.skip' || actionType() === 'round.continue' || actionType()?.startsWith('bidding.') ? value : 'idle',
+    attempt: actionType()?.startsWith('attempt.') || (actionType()?.startsWith('exploration.') && actionType() !== 'exploration.start') ? value : 'idle',
+    round: actionType() === 'exploration.start' || actionType() === 'round.skip' || actionType() === 'round.continue' || actionType()?.startsWith('bidding.') ? value : 'idle',
     rematch: actionType() === 'match.returnToLobby' ? value : 'idle',
     end: actionType() === 'room.end' ? value : 'idle',
   });
@@ -263,6 +265,7 @@ export function liveLobbyClient(input: RoomEnteredMessage, overrides: Partial<De
     const preparing = pending!.request.command.type === 'preparation.retry';
     const progressing = pending!.request.command.type.startsWith('round.');
     const requestingEarlyEnd = pending!.request.command.type.startsWith('bidding.');
+    const assigning = pending!.request.command.type === 'exploration.assignControl';
     const returning = pending!.request.command.type === 'match.returnToLobby';
     const skippingAttempt = pending!.request.command.type === 'attempt.skipDisconnected';
     const ending = pending!.request.command.type === 'room.end';
@@ -275,7 +278,10 @@ export function liveLobbyClient(input: RoomEnteredMessage, overrides: Partial<De
       attemptFeedback: result.outcome.status === 'no-op' ? result.outcome.reason === 'blocked-move' ? 'That robot cannot move in that direction.'
         : result.outcome.reason === 'empty-undo' ? 'There are no moves to undo.' : result.outcome.reason === 'already-reset' ? 'The attempt is already at its starting positions.' : '' : '',
       actionError: result.outcome.status === 'rejected'
-      ? result.outcome.reason === 'not-host' ? ending ? 'Only the host can end the room.' : requestingEarlyEnd ? 'Only the host can request or cancel ending bidding early.' : skippingAttempt ? 'Only the host can skip a disconnected attempt.' : returning ? 'Only the host can return everyone to the lobby.' : progressing ? 'Only the host can advance or skip the round.' : preparing ? 'Only the host can retry preparation.' : starting ? 'Only the host can start the match.' : 'Only the host can shuffle the board.'
+      ? result.outcome.reason === 'not-host' ? assigning ? 'Only the host can assign board control.' : ending ? 'Only the host can end the room.' : requestingEarlyEnd ? 'Only the host can request or cancel ending bidding early.' : skippingAttempt ? 'Only the host can skip a disconnected attempt.' : returning ? 'Only the host can return everyone to the lobby.' : progressing ? 'Only the host can advance or skip the round.' : preparing ? 'Only the host can retry preparation.' : starting ? 'Only the host can start the match.' : 'Only the host can shuffle the board.'
+        : result.outcome.reason === 'not-controller' ? 'Only the current controller can move the exploration board.'
+        : result.outcome.reason === 'player-offline' ? 'That player is offline. Choose a connected player.'
+        : result.outcome.reason === 'unknown-player' ? 'That player is not in this room.'
         : result.outcome.reason === 'preparation-cooldown' ? 'Preparation retry is not ready yet. Wait briefly and try again.'
         : result.outcome.reason === 'bidding-request-cooldown' ? 'Wait 10 seconds after a decline before requesting again.'
         : result.outcome.reason === 'bid-increase' ? 'This server does not accept bid increases. Refresh after the server is updated.'
@@ -309,7 +315,12 @@ export function liveLobbyClient(input: RoomEnteredMessage, overrides: Partial<De
     }
     const previous = state.room.status === 'playing' && state.room.match.phase === 'demonstrating' ? state.room.match : null;
     const next = room.status === 'playing' && room.match.phase === 'demonstrating' ? room.match : null;
-    const restore = freshBinding || (next && (!previous || previous.attempt.id !== next.attempt.id ||
+    const oldExploration = state.room.status === 'playing' && state.room.match.phase === 'exploring' ? state.room.match : null;
+    const newExploration = room.status === 'playing' && room.match.phase === 'exploring' ? room.match : null;
+    const explorationRestore = newExploration && (!oldExploration || oldExploration.matchId !== newExploration.matchId ||
+      oldExploration.round.number !== newExploration.round.number ||
+      (newExploration.exploration?.version ?? 0) > (oldExploration.exploration?.version ?? 0) + 1);
+    const restore = freshBinding || explorationRestore || (next && (!previous || previous.attempt.id !== next.attempt.id ||
       previous.matchId !== next.matchId || next.attempt.version > previous.attempt.version + 1));
     publish({ room, boardEpoch: state.boardEpoch + (restore ? 1 : 0),
       ...(previous?.attempt.id !== next?.attempt.id ? { attemptFeedback: '' } : {}) });
@@ -391,6 +402,7 @@ export function liveLobbyClient(input: RoomEnteredMessage, overrides: Partial<De
       : pending?.request.command.type === 'preparation.retry' ? 'The preparation reply is delayed. Retry the same request; another job will not be created.'
       : pending?.request.command.type === 'bid.submit' ? 'The bid reply is delayed. Retry the same request to check its outcome.'
       : pending?.request.command.type.startsWith('bidding.') ? 'The early-end request reply is delayed. Retry the same request to check its outcome.'
+      : pending?.request.command.type.startsWith('exploration.') ? 'The exploration reply is delayed. Retry the same request to check its outcome; do not repeat the action.'
       : pending?.request.command.type.startsWith('attempt.') ? 'The attempt reply is delayed. Retry the same request to check its outcome; do not repeat the action.'
       : pending?.request.command.type.startsWith('round.') ? 'The round reply is delayed. Retry the same request; the round will not advance twice.'
       : pending?.request.command.type === 'match.returnToLobby' ? 'The New Match reply is delayed. Retry the same request; the lobby will not be recreated twice.'
@@ -432,6 +444,20 @@ export function liveLobbyClient(input: RoomEnteredMessage, overrides: Partial<De
 
   function submitAttempt(command: AttemptMatchCommand) {
     const room = state.room;
+    if (room.status === 'playing' && room.match.phase === 'exploring') {
+      if (!ready() || pending || (room.match.controllerSeatId !== entry.seatId &&
+        !(command.type === 'attempt.reset' && room.hostSeatId === entry.seatId)) || command.type === 'attempt.giveUp') return;
+      const match = room.match;
+      const type = command.type === 'attempt.move' ? 'exploration.move' : command.type === 'attempt.undo' ? 'exploration.undo' : 'exploration.reset';
+      try {
+        const parsed = parseClientRequest({ version: PROTOCOL_VERSION, roomId: entry.roomId, commandId: deps.commandId(),
+          context: { matchId: match.matchId, roundNumber: match.round.number, explorationVersion: match.exploration?.version ?? 0 },
+          command: command.type === 'attempt.move' ? { type, robotId: command.robotId, direction: command.direction } : { type } });
+        if (!parsed.ok || !('roomId' in parsed.value)) throw new Error('Invalid exploration request');
+        pending = { request: parsed.value };
+      } catch { publish({ actionError: 'The exploration request could not be prepared. Please try again.' }); return; }
+      sendAction(); return;
+    }
     if (!ready() || pending || room.status !== 'playing' || room.match.phase !== 'demonstrating') return;
     const match = room.match;
     if (match.bidderQueue[match.activeBidderIndex].seatId !== entry.seatId) return;
@@ -441,6 +467,21 @@ export function liveLobbyClient(input: RoomEnteredMessage, overrides: Partial<De
       if (!parsed.ok || !('roomId' in parsed.value)) throw new Error('Invalid attempt request');
       pending = { request: parsed.value };
     } catch { publish({ actionError: 'The attempt request could not be prepared. Please try again.' }); return; }
+    sendAction();
+  }
+
+  function assignExplorationControl(seatId: string) {
+    const room = state.room;
+    if (!ready() || pending || room.status !== 'playing' || room.match.phase !== 'exploring' ||
+      room.hostSeatId !== entry.seatId || !room.players.some((p) => p.seatId === seatId && p.connected)) return;
+    const match = room.match;
+    try {
+      const parsed = parseClientRequest({ version: PROTOCOL_VERSION, roomId: entry.roomId, commandId: deps.commandId(),
+        context: { matchId: match.matchId, roundNumber: match.round.number, explorationVersion: match.exploration?.version ?? 0 },
+        command: { type: 'exploration.assignControl', seatId } });
+      if (!parsed.ok || !('roomId' in parsed.value)) throw new Error('Invalid assignment request');
+      pending = { request: parsed.value };
+    } catch { publish({ actionError: 'Control could not be assigned. Please try again.' }); return; }
     sendAction();
   }
 
@@ -479,10 +520,11 @@ export function liveLobbyClient(input: RoomEnteredMessage, overrides: Partial<De
     sendAction();
   }
 
-  function submitRound(type: 'round.skip' | 'round.continue') {
+  function submitRound(type: 'round.skip' | 'round.continue' | 'exploration.start') {
     const room = state.room;
     if (!ready() || pending || room.hostSeatId !== entry.seatId || room.status !== 'playing' ||
-      (type === 'round.skip' ? room.match.phase !== 'thinking' : room.match.phase !== 'round-result') || !('round' in room.match)) return;
+      (type === 'round.skip' ? room.match.phase !== 'thinking' :
+        room.match.phase !== 'round-result' && !(type === 'round.continue' && room.match.phase === 'exploring')) || !('round' in room.match)) return;
     try {
       if (type === 'round.skip') {
         if (!deps.confirm('Skip this round? No points will be awarded. Robots stay in place, this target remains used, and the round counts toward the match total.')) return;
@@ -613,6 +655,8 @@ export function liveLobbyClient(input: RoomEnteredMessage, overrides: Partial<De
     skipDisconnected,
     skipRound: () => submitRound('round.skip'),
     continueRound: () => submitRound('round.continue'),
+    startExploration: () => submitRound('exploration.start'),
+    assignExplorationControl,
     returnToLobby,
     endRoom,
     getServerNow,

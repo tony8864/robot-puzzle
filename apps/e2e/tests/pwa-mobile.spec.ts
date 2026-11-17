@@ -1,7 +1,8 @@
 import { test, expect } from '../support/fixtures';
-import { createRoom } from '../support/lobby';
+import { createRoom, observeRooms } from '../support/lobby';
+import { DIRECTIONS, ROBOT_IDS, moveRobot } from '../../../packages/game-engine/src';
 import { advanceServer, recoveryTransport } from '../support/recovery';
-import { placeBid } from '../support/gameplay';
+import { expectRobots, placeBid } from '../support/gameplay';
 import { expectMobileLayout, layoutSizes } from '../support/mobileLayout';
 import type { Page } from '@playwright/test';
 
@@ -290,6 +291,7 @@ test('offline entry prevents click/keyboard submission and preserves manual exac
 
 test('entry, live board, menus, attempt controls and results retain square geometry and accessible targets at responsive sizes', async ({ page, guestPage, environment, context }, info) => {
   test.setTimeout(90_000);
+  const readRoom = observeRooms(page);
   await page.goto('/');
   for (const size of layoutSizes) {
     await page.setViewportSize(size);
@@ -435,6 +437,74 @@ test('entry, live board, menus, attempt controls and results retain square geome
     await expect(page.getByRole('dialog')).toBeVisible(); await expectMobileLayout(page);
     const panel = (await page.locator('.round-result-panel').boundingBox())!;
     expect(panel.y).toBeGreaterThanOrEqual(0); expect(panel.y + panel.height).toBeLessThanOrEqual(size.height + 1);
+    const explore = page.getByRole('button', { name: 'Explore Board', exact: true });
+    const continueButton = page.getByRole('button', { name: 'Continue', exact: true });
+    await expect(explore).toBeVisible(); await expect(explore).toBeEnabled();
+    await expect(guestPage.getByRole('button', { name: 'Explore Board', exact: true })).toHaveCount(0);
+    const exploreBounds = (await explore.boundingBox())!;
+    const continueBounds = (await continueButton.boundingBox())!;
+    expect(exploreBounds.y + exploreBounds.height).toBeLessThanOrEqual(continueBounds.y);
+    expect(exploreBounds.width).toBeCloseTo(continueBounds.width, 1);
+    await expect(explore).toHaveCSS('background-color', 'rgb(33, 55, 84)');
+    await expect(continueButton).toHaveCSS('background-color', 'rgb(255, 209, 102)');
     await page.getByRole('button', { name: 'Continue', exact: true }).scrollIntoViewIfNeeded();
   }
+  await page.screenshot({ path: info.outputPath('round-complete-actions.png') });
+  await page.getByRole('button', { name: 'Explore Board', exact: true }).click();
+  await expect(page.getByRole('tab', { name: 'Explore', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('tab', { name: 'Manage', exact: true }).click();
+  for (const size of [{ width: 390, height: 844 }, { width: 1280, height: 800 }]) {
+    await page.setViewportSize(size);
+    await page.getByRole('tab', { name: 'Explore', exact: true }).click();
+    const room = readRoom();
+    if (room?.status !== 'playing' || room.match.phase !== 'exploring') throw new Error('Expected Exploration');
+    const positions = room.match.robots;
+    const legal = ROBOT_IDS.flatMap((robotId) => DIRECTIONS.map((direction) => ({ robotId, direction })))
+      .find((move) => moveRobot(room.puzzle.board, positions, move.robotId, move.direction).moved)!;
+    const moved = moveRobot(room.puzzle.board, positions, legal.robotId, legal.direction).robots;
+    const move = async () => {
+      await page.getByRole('button', { name: `Select ${legal.robotId} robot`, exact: true }).click();
+      await page.getByRole('button', { name: `Move selected robot ${legal.direction}`, exact: true }).click();
+      await expectRobots([page, guestPage], moved);
+      await expect(page.getByRole('button', { name: 'Undo last move', exact: true })).toBeEnabled();
+    };
+    await move();
+    await page.getByRole('button', { name: 'Undo last move', exact: true }).click();
+    await expectRobots([page, guestPage], positions);
+    await expect(page.getByRole('button', { name: `Move selected robot ${legal.direction}`, exact: true })).toBeEnabled();
+    await move();
+    await page.getByRole('tab', { name: 'Manage', exact: true }).click();
+    await page.getByRole('button', { name: 'Reset Board', exact: true }).click();
+    await expectRobots([page, guestPage], room.match.round.startRobots);
+    await expect(page.getByRole('button', { name: 'Next Round', exact: true })).toBeEnabled();
+    await expect(page.getByRole('region', { name: 'Board Control' })).toBeVisible();
+    await expectMobileLayout(page);
+    await page.screenshot({ path: info.outputPath(`in-match-manage-${size.width}.png`), fullPage: true });
+  }
+  await page.getByRole('button', { name: 'Give control to Alex', exact: true }).click();
+  await expect(page.getByRole('tab', { name: 'Explore', exact: true })).toBeDisabled();
+  for (const size of [{ width: 390, height: 844 }, { width: 1280, height: 800 }]) {
+    await guestPage.setViewportSize(size);
+    await expect(guestPage.getByRole('region', { name: 'Exploration controls' })).toBeVisible();
+    const room = readRoom()!;
+    if (room.status !== 'playing' || room.match.phase !== 'exploring') throw new Error('Expected Exploration');
+    const positions = room.match.robots;
+    const move = ROBOT_IDS.flatMap((robotId) => DIRECTIONS.map((direction) => ({ robotId, direction })))
+      .find((m) => moveRobot(room.puzzle.board, positions, m.robotId, m.direction).moved)!;
+    const moved = moveRobot(room.puzzle.board, positions, move.robotId, move.direction).robots;
+    await guestPage.getByRole('button', { name: `Select ${move.robotId} robot`, exact: true }).click();
+    await guestPage.getByRole('button', { name: `Move selected robot ${move.direction}`, exact: true }).click();
+    await expectRobots([page, guestPage], moved);
+    await expect(page.getByRole('button', { name: 'Reset Board', exact: true })).toBeEnabled();
+    await page.getByRole('button', { name: 'Reset Board', exact: true }).click();
+    await expectRobots([page, guestPage], room.match.round.startRobots);
+    await expect(page.getByRole('button', { name: 'Next Round', exact: true })).toBeEnabled();
+    await expectMobileLayout(guestPage);
+    await guestPage.screenshot({ path: info.outputPath(`guest-exploration-${size.width}.png`), fullPage: true });
+  }
+  await page.getByRole('button', { name: 'Give control to Maria', exact: true }).click();
+  await expect(page.getByRole('tab', { name: 'Explore', exact: true })).toBeEnabled();
+  await expect(page.getByRole('tab', { name: 'Manage', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(guestPage.getByRole('dialog')).toHaveCount(0);
+  await expect(guestPage.getByRole('heading', { name: 'Exploration', exact: true })).toBeVisible();
 });

@@ -24,6 +24,7 @@ export interface AttemptContext extends RoundContext {
   readonly attemptId: string;
   readonly attemptVersion: number;
 }
+export interface ExplorationContext extends RoundContext { readonly explorationVersion: number }
 export type EmptyContext = Readonly<Record<string, never>>;
 
 interface Envelope<Command> {
@@ -58,10 +59,12 @@ export type GameplayRoomRequest =
   | RoomEnvelope<{ readonly type: 'attempt.skipDisconnected'; readonly confirmed: boolean }, AttemptContext & { readonly disconnectId: string }>
   | RoomEnvelope<Extract<PlayerMatchCommand, { type: 'round.skip' }>, RoundContext>
   | RoomEnvelope<{ readonly type: 'round.continue' }, RoundContext>
+  | RoomEnvelope<{ readonly type: 'exploration.start' }, RoundContext>
+  | RoomVariants<Extract<PlayerMatchCommand, { type: 'exploration.move' | 'exploration.undo' | 'exploration.reset' | 'exploration.assignControl' }>, ExplorationContext>
   | RoomEnvelope<{ readonly type: 'match.returnToLobby' }, MatchContext>;
 
 export type LegacyRoomRequest = GameplayRoomRequest extends infer Request
-  ? Request extends GameplayRoomRequest ? Request extends { command: { type: 'attempt.skipDisconnected' | 'room.end' | 'bidding.requestEnd' | 'bidding.cancelEnd' | 'bidding.voteEnd' } } ? never
+  ? Request extends GameplayRoomRequest ? Request extends { command: { type: 'attempt.skipDisconnected' | 'room.end' | 'bidding.requestEnd' | 'bidding.cancelEnd' | 'bidding.voteEnd' | 'exploration.start' | 'exploration.move' | 'exploration.undo' | 'exploration.reset' | 'exploration.assignControl' } } ? never
     : Omit<Request, 'version'> & { readonly version: 1 } : never : never;
 export type RoomRequest = GameplayRoomRequest | RoomEnvelope<{
   readonly type: 'command.retry'; readonly originalRequest: LegacyRoomRequest;

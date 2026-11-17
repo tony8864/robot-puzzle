@@ -61,6 +61,9 @@ export type PublicMatch = PublicMatchBase & (
       /** Missing only on retained pre-T17.4 snapshots; never grants skip permission. */
       readonly disconnect?: PublicAttemptDisconnect | null }
   | { readonly phase: 'round-result'; readonly completedRounds: RoundNumber; readonly round: PublicRound; readonly outcome: RoundOutcome }
+  | { readonly phase: 'exploring'; readonly completedRounds: RoundNumber; readonly round: PublicRound; readonly outcome: RoundOutcome;
+      readonly controllerSeatId: string; readonly robots: RobotPositions;
+      readonly exploration?: { readonly version: number; readonly moveCount: number } }
   | { readonly phase: 'finished'; readonly completedRounds: 10 }
 );
 export interface PublicRoomMetadata {

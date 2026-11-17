@@ -127,9 +127,86 @@ test('two browsers finish ten rounds with success, exhausted bidders, skips, res
       expect(result.hostSeatId).toBe(hostSeat);
       expect(result.players.map((player) => player.seatId)).toEqual(seats);
       await expectRobots(pages, official);
-      const action = round === 10 ? 'View Results' : 'Continue';
-      await expect(guestPage.getByRole('button', { name: action, exact: true })).toHaveCount(0);
-      await page.getByRole('button', { name: action, exact: true }).click();
+      await expect(guestPage.getByRole('button', { name: 'Explore Board', exact: true })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Explore Board', exact: true })).toBeEnabled();
+      await expect(guestPage.getByRole('button', { name: 'Continue', exact: true })).toHaveCount(0);
+      if (round === 1 || round === 10) {
+        await page.getByRole('button', { name: 'Explore Board', exact: true }).click();
+        await expect(page.getByRole('heading', { name: 'Exploration', exact: true })).toBeVisible();
+        await expect(page.getByRole('tab', { name: 'Explore', exact: true })).toHaveAttribute('aria-selected', 'true');
+        await expect(guestPage.getByRole('heading', { name: 'Exploration', exact: true })).toBeVisible();
+        await expect(guestPage.getByRole('dialog')).toHaveCount(0);
+        await expect(guestPage.getByRole('tab')).toHaveCount(0);
+        await expectRobots(pages, result.match.round.startRobots);
+        const exploration = await shared();
+        expect(exploration.status === 'playing' && exploration.match).toMatchObject({
+          phase: 'exploring', officialRobots: official, scores, outcome: result.match.outcome,
+          controllerSeatId: hostSeat, robots: result.match.round.startRobots,
+        });
+        const legal = ROBOT_IDS.flatMap((robotId) => DIRECTIONS.map((direction) => ({ robotId, direction })))
+          .find((move) => moveRobot(result.puzzle.board, result.match.phase === 'round-result' ? result.match.round.startRobots : official,
+            move.robotId, move.direction).moved)!;
+        const moved = moveRobot(result.puzzle.board, result.match.round.startRobots, legal.robotId, legal.direction).robots;
+        const exploreMove = async () => {
+          await page.getByRole('button', { name: `Select ${legal.robotId} robot`, exact: true }).click();
+          await page.getByRole('button', { name: `Move selected robot ${legal.direction}`, exact: true }).click();
+          await expectRobots(pages, moved);
+          await expect(page.getByRole('button', { name: 'Undo last move', exact: true })).toBeEnabled();
+        };
+        await expect(page.getByRole('button', { name: 'Give up', exact: true })).toHaveCount(0);
+        await expect(guestPage.getByRole('region', { name: 'Exploration controls' })).toHaveCount(0);
+        await exploreMove();
+        // Reload restores the persisted phase rather than reopening the result modal.
+        if (round === 1) {
+          await page.reload(); await guestPage.reload();
+          for (const player of pages) await expect(player.getByRole('heading', { name: 'Exploration', exact: true })).toBeVisible();
+          await expectRobots(pages, moved);
+        }
+        await page.getByRole('button', { name: 'Undo last move', exact: true }).click();
+        await expectRobots(pages, result.match.round.startRobots);
+        await exploreMove();
+        await page.getByRole('button', { name: 'Reset attempt', exact: true }).click();
+        await expectRobots(pages, result.match.round.startRobots);
+        await exploreMove();
+        await page.getByRole('tab', { name: 'Manage', exact: true }).click();
+        await expect(page.getByRole('region', { name: 'Board Control' })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Reset Board', exact: true })).toBeEnabled();
+        await page.getByRole('button', { name: 'Reset Board', exact: true }).click();
+        await expectRobots(pages, result.match.round.startRobots);
+        await expect(page.getByRole('button', { name: 'Next Round', exact: true })).toBeEnabled();
+        await page.getByRole('tab', { name: 'Explore', exact: true }).click();
+        await exploreMove(); // Leave temporary positions changed when advancing.
+        await page.getByRole('tab', { name: 'Manage', exact: true }).click();
+        await page.getByRole('button', { name: 'Give control to Alex', exact: true }).click();
+        await expect(page.getByRole('tab', { name: 'Explore', exact: true })).toBeDisabled();
+        await expect(page.getByRole('tab', { name: 'Manage', exact: true })).toHaveAttribute('aria-selected', 'true');
+        await expect(guestPage.getByRole('region', { name: 'Exploration controls' })).toBeVisible();
+        await expectRobots(pages, moved);
+        await guestPage.getByRole('button', { name: 'Undo last move', exact: true }).click();
+        await expectRobots(pages, result.match.round.startRobots);
+        await guestPage.getByRole('button', { name: `Select ${legal.robotId} robot`, exact: true }).click();
+        await guestPage.getByRole('button', { name: `Move selected robot ${legal.direction}`, exact: true }).click();
+        await expectRobots(pages, moved);
+        await page.getByRole('button', { name: 'Reset Board', exact: true }).click();
+        await expectRobots(pages, result.match.round.startRobots);
+        await expect(page.getByRole('tab', { name: 'Explore', exact: true })).toBeDisabled();
+        if (round === 1) {
+          await guestPage.context().setOffline(true);
+          await expect(page.getByRole('list', { name: 'Board control players' }).getByRole('listitem').filter({ hasText: 'Alex' })).toContainText('Offline');
+          await expect(guestPage.getByRole('button', { name: `Move selected robot ${legal.direction}`, exact: true })).toBeDisabled();
+          await guestPage.context().setOffline(false);
+          await expect(guestPage.getByRole('button', { name: `Move selected robot ${legal.direction}`, exact: true })).toBeEnabled();
+          await expect(page.getByRole('list', { name: 'Board control players' }).getByRole('listitem').filter({ hasText: 'Alex' })).not.toContainText('Offline');
+        }
+        await page.getByRole('button', { name: 'Give control to Maria', exact: true }).click();
+        await expect(page.getByRole('tab', { name: 'Explore', exact: true })).toBeEnabled();
+        await expect(page.getByRole('tab', { name: 'Manage', exact: true })).toHaveAttribute('aria-selected', 'true');
+        await expect(guestPage.getByRole('region', { name: 'Exploration controls' })).toHaveCount(0);
+        await page.getByRole('tab', { name: 'Explore', exact: true }).click();
+        await exploreMove();
+        await page.getByRole('tab', { name: 'Manage', exact: true }).click();
+        await page.getByRole('button', { name: 'Next Round', exact: true }).click();
+      } else await page.getByRole('button', { name: 'Continue', exact: true }).click();
       for (const player of pages) await expect(player.getByRole('dialog')).toHaveCount(0);
     });
   }

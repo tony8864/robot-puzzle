@@ -110,6 +110,29 @@ This document does not establish intellectual-property clearance.
 - Each new round reveals a new solvable target from the current official positions.
 - The round result remains until the host advances. Guests wait; there is no automatic next-round transition. After round 10, the host advances to final results instead of revealing an eleventh target.
 
+### Post-round Exploration (approved addition)
+
+- After any completed round, including round 10 and unsolved/skipped rounds, the
+  host may choose Continue or Explore Board without voting or confirmation.
+- Exploration opens at the completed round's original start positions. Its board
+  is temporary: official carry-forward positions, scores and results stay intact.
+- The host initially controls the board. Only the host advances with Next Round;
+  normal preparation uses official positions, or opens final results after round 10.
+- The controller can move any robot without a bid or move limit. Movements are
+  shared in real time; reaching the target does not score or end Exploration.
+- Undo reverses the latest Exploration move. Reset restores all round-start
+  positions and clears the Exploration history without changing the controller.
+- The host may immediately assign control to themselves or any connected player,
+  without voting or confirmation. Only the selected controller moves or Undoes;
+  transfers preserve temporary positions and shared history. The host can Reset
+  Board and choose Next Round even while someone else controls it.
+- Host Explore/Manage tabs retain their selection across transfers; Explore is
+  disabled while another player controls the board. Other controllers see movement
+  controls without management actions; viewers see who is demonstrating.
+- All room players remain listed. Offline seats cannot receive control. If the
+  current controller disconnects, movement pauses until they reconnect or the host
+  assigns a connected player; no timer or automatic transfer applies.
+
 ## 10. Scoring and match end
 
 - Exactly **1 point** is awarded for each successfully completed round.

@@ -129,15 +129,16 @@ export function executeLobbyCommand(
         outcome = { status: 'accepted' };
       }
     }
-    else if (input.command.type === 'round.skip' || input.command.type === 'round.continue') {
+    else if (input.command.type === 'round.skip' || input.command.type === 'round.continue' || input.command.type === 'exploration.start') {
       const match = saved.match;
       const requiredPhase = input.command.type === 'round.skip' ? 'thinking' : 'round-result';
-      if (!match || state.status !== 'playing' || match.state.phase !== requiredPhase) outcome = { status: 'rejected', reason: 'wrong-phase' };
+      if (!match || state.status !== 'playing' || (match.state.phase !== requiredPhase &&
+        !(input.command.type === 'round.continue' && match.state.phase === 'exploring'))) outcome = { status: 'rejected', reason: 'wrong-phase' };
       else if (!('roundNumber' in input.context) || input.context.matchId !== match.state.matchId ||
         !('round' in match.state) || input.context.roundNumber !== match.state.round.number) outcome = { status: 'rejected', reason: 'stale-context' };
       else if (seatId !== state.hostSeatId) outcome = { status: 'rejected', reason: 'not-host' };
       else {
-        const next = input.command.type === 'round.skip'
+        const next = input.command.type === 'round.skip' || input.command.type === 'exploration.start'
           ? transitionMatch(match.state, { source: 'player', context: { actorSeatId: seatId, hostSeatId: state.hostSeatId, nowMs }, command: input.command })
           : transitionMatch(match.state, { source: 'controller', context: { nowMs }, command: { type: 'round.advance' } });
         if (next.outcome.status === 'rejected' && next.outcome.reason === 'confirmation-required') outcome = { status: 'rejected', reason: 'confirmation-required' };
@@ -146,11 +147,40 @@ export function executeLobbyCommand(
           const stored: StoredMatch = next.state.phase === 'preparing' ? queuedPreparation(next.state, nowMs)
             : next.state.phase === 'finished' ? { version: 5, state: next.state }
             : next.state.phase === 'round-result' ? { version: 4, state: next.state }
+            : next.state.phase === 'exploring' ? { version: 7, state: next.state }
             : (() => { throw new Error('Invalid round phase'); })();
           nextState = projectStoredMatch({ ...state, revision: state.revision + 1 }, stored);
           nextRoom = { ...saved, match: stored };
           outcome = { status: 'accepted' };
         }
+      }
+    }
+    else if (input.command.type === 'exploration.assignControl' || input.command.type === 'exploration.move' || input.command.type === 'exploration.undo' || input.command.type === 'exploration.reset') {
+      const match = saved.match;
+      const c = input.context;
+      const assignedSeatId = input.command.type === 'exploration.assignControl' ? input.command.seatId : null;
+      if (!match || state.status !== 'playing' || match.state.phase !== 'exploring') outcome = { status: 'rejected', reason: 'wrong-phase' };
+      else if (!('explorationVersion' in c) || c.matchId !== match.state.matchId || c.roundNumber !== match.state.round.number ||
+        c.explorationVersion !== (match.state.exploration?.version ?? 0)) outcome = { status: 'rejected', reason: 'stale-context' };
+      else if (input.command.type === 'exploration.assignControl' && seatId !== state.hostSeatId) outcome = { status: 'rejected', reason: 'not-host' };
+      else if (assignedSeatId !== null && !state.players.some((p) => p.seatId === assignedSeatId)) outcome = { status: 'rejected', reason: 'unknown-player' };
+      else if (assignedSeatId !== null && !state.players.some((p) => p.seatId === assignedSeatId && p.connected)) outcome = { status: 'rejected', reason: 'player-offline' };
+      else {
+        const next = transitionMatch(match.state, { source: 'player',
+          context: { actorSeatId: seatId, hostSeatId: state.hostSeatId, nowMs }, command: input.command });
+        if (next.outcome.status === 'accepted') {
+          if (next.state.phase !== 'exploring') throw new Error('Invalid exploration transition');
+          const stored: StoredMatch = { version: 7, state: next.state };
+          nextState = projectStoredMatch({ ...state, revision: state.revision + 1 }, stored);
+          nextRoom = { ...saved, match: stored };
+        }
+        if (next.outcome.status === 'rejected') {
+          if (next.outcome.reason !== 'not-controller' && next.outcome.reason !== 'not-host' && next.outcome.reason !== 'unknown-player') throw new Error('Invalid exploration rejection');
+          outcome = { status: 'rejected', reason: next.outcome.reason };
+        } else if (next.outcome.status === 'no-op') {
+          if (!['blocked-move', 'empty-undo', 'already-reset'].includes(next.outcome.reason)) throw new Error('Invalid exploration no-op');
+          outcome = next.outcome as PublicCommandOutcome;
+        } else outcome = { status: 'accepted' };
       }
     }
     else if (input.command.type === 'attempt.skipDisconnected') {

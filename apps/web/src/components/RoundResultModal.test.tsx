@@ -31,6 +31,8 @@ test.each([
   expect(markup).toContain(message);
   expect(markup).toContain('No points awarded.');
   expect(markup).toContain('>Continue</button>');
+  expect(markup).toContain('class="round-result-panel__explore" disabled="">Explore Board</button>');
+  expect(markup.indexOf('>Explore Board</button>')).toBeLessThan(markup.indexOf('>Continue</button>'));
   expect(markup).not.toContain('+1 point');
   expect(markup).not.toContain('Preparing');
 });
@@ -40,6 +42,8 @@ test.each([1, 5])('success shows winner, %i moves, accepted bid, and just the po
   expect(markup).toContain('Maria solved the target!');
   expect(markup).toContain(`${moves} ${moves === 1 ? 'move' : 'moves'} · Bid: 7 · <strong>+1 point</strong>`);
   expect(markup).not.toContain('No points awarded.');
+  expect(markup).toContain('class="round-result-panel__explore" disabled="">Explore Board</button>');
+  expect(markup).toContain('>Continue</button>');
 });
 
 test('non-host waits, and final round changes both host and watcher actions', () => {
@@ -47,10 +51,24 @@ test('non-host waits, and final round changes both host and watcher actions', ()
   expect(render(match, false)).toContain('Waiting for Maria to continue.');
   expect(render(match, false)).not.toContain('<button');
   const final: RoundResultMatchState = { ...match, completedRounds: MATCH_ROUND_COUNT, round: { ...match.round, number: MATCH_ROUND_COUNT } };
-  expect(render(final)).toContain('>View Results</button>');
+  expect(render(final)).toContain('>Continue</button>');
+  expect(render(final)).toContain('class="round-result-panel__explore" disabled="">Explore Board</button>');
   expect(render(final)).toContain(`ROUND ${MATCH_ROUND_COUNT} COMPLETE`);
   expect(render(final, false)).toContain('Waiting for Maria to show the results.');
   expect(render(final, false)).not.toContain('<button');
+});
+
+test.each([{ pending: true }, { disabled: true }])('host Continue keeps its disabled/pending guard: %j', (flags) => {
+  const markup = renderToStaticMarkup(<RoundResultModal match={result({ kind: 'no-bid-skip' })}
+    isHost hostName="Maria" onContinue={vi.fn()} {...flags} />);
+  expect(markup).toContain('<button type="button" disabled="">Continue</button>');
+  expect(markup).toContain('class="round-result-panel__explore" disabled="">Explore Board</button>');
+});
+
+test('host Explore Board is enabled when a UI-opening callback is supplied', () => {
+  const markup = renderToStaticMarkup(<RoundResultModal match={result({ kind: 'no-bid-skip' })}
+    isHost hostName="Maria" onContinue={vi.fn()} onExplore={vi.fn()} />);
+  expect(markup).toContain('class="round-result-panel__explore">Explore Board</button>');
 });
 
 test('native dialog lifecycle opens modally and restores body scrolling on cleanup/remount', () => {

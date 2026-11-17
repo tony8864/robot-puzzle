@@ -7,6 +7,7 @@ export interface RoundResultModalProps {
   readonly isHost: boolean;
   readonly hostName: string;
   readonly onContinue: () => void;
+  readonly onExplore?: () => void;
   readonly developmentTools?: ReactNode;
   readonly pending?: boolean;
   readonly disabled?: boolean;
@@ -17,7 +18,7 @@ export interface RoundResultModalProps {
 /** Native modal provides background inertness, focus containment, and focus return. */
 export const openResultDialog = openModalDialog;
 
-export function RoundResultModal({ match, isHost, hostName, onContinue, developmentTools, pending: remotePending, disabled = false, recovery, administrativeActions }: RoundResultModalProps) {
+export function RoundResultModal({ match, isHost, hostName, onContinue, onExplore, developmentTools, pending: remotePending, disabled = false, recovery, administrativeActions }: RoundResultModalProps) {
   const dialog = useRef<HTMLDialogElement>(null);
   const panel = useRef<HTMLElement>(null);
   const [localPending, setPending] = useState(false);
@@ -64,9 +65,11 @@ export function RoundResultModal({ match, isHost, hostName, onContinue, developm
           </> : 'No points awarded.'}
         </p>
         <div className="round-result-panel__action">
-          {isHost ? <button type="button" disabled={disabled || pending} onClick={advance}>
-            {finalRound ? 'View Results' : 'Continue'}
-          </button> : <p>Waiting for {hostName} to {finalRound ? 'show the results' : 'continue'}.</p>}
+          {isHost ? <>
+            <button type="button" className="round-result-panel__explore" disabled={!onExplore || disabled || pending}
+              onClick={() => { if (isHost && !disabled && !pending) onExplore?.(); }}>Explore Board</button>
+            <button type="button" disabled={disabled || pending} onClick={advance}>Continue</button>
+          </> : <p>Waiting for {hostName} to {finalRound ? 'show the results' : 'continue'}.</p>}
         </div>
         {recovery && <div className="round-result-panel__recovery">{recovery}</div>}
       </section>

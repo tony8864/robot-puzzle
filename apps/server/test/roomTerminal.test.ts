@@ -14,7 +14,7 @@ import { initializeSessions } from '../src/sessions';
 import { PresenceStore } from '../src/presence';
 import { EMPTY_ROOM_TIMEOUT_MS, emptyRoomTimeout } from '../src/emptyRoomPolicy';
 
-type Phase = 'lobby' | 'preparing' | 'thinking' | 'bidding' | 'demonstrating' | 'round-result' | 'finished';
+type Phase = 'lobby' | 'preparing' | 'thinking' | 'bidding' | 'demonstrating' | 'round-result' | 'exploring' | 'finished';
 function seed(storage: DurableObjectStorage, phase: Phase): StoredRoom {
   const players = ['Host', 'Guest'].map((nickname) => ({ seatId: crypto.randomUUID(), nickname, connected: false }));
   const projected = projectLobbyState({ roomId: crypto.randomUUID(), roomCode: 'ABC234', revision: 1,
@@ -38,8 +38,8 @@ function seed(storage: DurableObjectStorage, phase: Phase): StoredRoom {
     room = { ...room, match, state: projectStoredMatch(room.state, match) };
   }
   storage.sql.exec('INSERT INTO room_state VALUES (1, ?)', JSON.stringify(room));
-  if (['demonstrating', 'round-result', 'finished'].includes(phase)) expireBidding(storage, 61000);
-  if (phase === 'round-result' || phase === 'finished') {
+  if (['demonstrating', 'round-result', 'exploring', 'finished'].includes(phase)) expireBidding(storage, 61000);
+  if (phase === 'round-result' || phase === 'exploring' || phase === 'finished') {
     for (let i = 0; i < 2; i++) {
       room = storedRoom(storage)!;
       if (room.state.status !== 'playing' || room.state.match.phase !== 'demonstrating') throw new Error('Expected attempt');
@@ -48,6 +48,13 @@ function seed(storage: DurableObjectStorage, phase: Phase): StoredRoom {
         commandId: crypto.randomUUID(), context: { matchId: m.matchId, roundNumber: m.round.number, attemptId: m.attempt.id, attemptVersion: m.attempt.version },
         command: { type: 'attempt.giveUp' } }, undefined, undefined, () => 62000);
     }
+  }
+  if (phase === 'exploring') {
+    room = storedRoom(storage)!;
+    const m = room.match!.state;
+    if (m.phase !== 'round-result') throw new Error('Expected result');
+    executeLobbyCommand(storage, 'host', room.state.hostSeatId, { version: 2, roomId: room.state.roomId, commandId: crypto.randomUUID(),
+      context: { matchId: m.matchId, roundNumber: m.round.number }, command: { type: 'exploration.start' } }, undefined, undefined, () => 63000);
   }
   if (phase === 'finished') {
     room = storedRoom(storage)!;
@@ -76,7 +83,7 @@ test('30-minute policy is fixed outside local mode; the optional short local set
   for (const value of ['0', '-1', '1801', '1.5', 'abc', 60]) expect(() => emptyRoomTimeout({ APP_ENV: 'local', LOCAL_EMPTY_ROOM_TIMEOUT_SECONDS: value })).toThrow();
 });
 
-test.each<Phase>(['lobby', 'preparing', 'thinking', 'bidding', 'demonstrating', 'round-result', 'finished'])('continuous emptiness expires %s exactly once without scores, movement or automatic forfeit', async (phase) => {
+test.each<Phase>(['lobby', 'preparing', 'thinking', 'bidding', 'demonstrating', 'round-result', 'exploring', 'finished'])('continuous emptiness expires %s exactly once without scores, movement or automatic forfeit', async (phase) => {
   await scenario((storage) => {
     const room = seed(storage, phase); const p = new PresenceStore(storage); const start = 100000;
     p.reconcile(new Set(), start); const deadline = start + EMPTY_ROOM_TIMEOUT_MS;
@@ -194,7 +201,7 @@ test('preparation expiry is rechecked after awaited alarm setup, before search o
   });
 });
 
-test.each<Phase>(['lobby', 'preparing', 'thinking', 'bidding', 'demonstrating', 'round-result', 'finished'])('host End is terminal in %s, without points/results/reset or resurrection', async (phase) => {
+test.each<Phase>(['lobby', 'preparing', 'thinking', 'bidding', 'demonstrating', 'round-result', 'exploring', 'finished'])('host End is terminal in %s, without points/results/reset or resurrection', async (phase) => {
   await scenario(async (storage) => {
     const before = seed(storage, phase); const command = end(before);
     const now = phase === 'bidding' ? 60000 : 64000;

@@ -41,6 +41,7 @@ function parseMatch(value: unknown, board: PublicPuzzle, roster: readonly Public
       ...(item.earlyEndAvailableAtMs === undefined ? [] : ['earlyEndAvailableAtMs'])]; break;
     case 'demonstrating': extra = ['round', 'bidderQueue', 'activeBidderIndex', 'attempt', ...(item.disconnect === undefined ? [] : ['disconnect'])]; break;
     case 'round-result': extra = ['round', 'outcome']; break;
+    case 'exploring': extra = ['round', 'outcome', 'controllerSeatId', 'robots', ...(item.exploration === undefined ? [] : ['exploration'])]; break;
     case 'finished': extra = []; break;
     default: throw new Error('Invalid phase');
   }
@@ -74,11 +75,25 @@ function parseMatch(value: unknown, board: PublicPuzzle, roster: readonly Public
   const round = parseRound(item.round, board);
   const target = board.targets.find((target) => target.id === round.targetId);
   check(target && usedTargetIds.at(-1) === target.id && !isTargetComplete(round.startRobots, target));
-  if (item.phase === 'round-result') {
+  if (item.phase === 'round-result' || item.phase === 'exploring') {
     check(round.number === completedRounds && usedTargetIds.length === completedRounds);
     const outcome = parseOutcome(item.outcome, roster, scores);
     check(outcome.kind === 'success' ? isTargetComplete(base.officialRobots, target) : sameRobots(base.officialRobots, round.startRobots));
-    return { ...base, phase: 'round-result', completedRounds: roundNumber(completedRounds), round, outcome };
+    const result = { ...base, completedRounds: roundNumber(completedRounds), round, outcome };
+    if (item.phase === 'exploring') {
+      const controllerSeatId = id(item.controllerSeatId);
+      check(roster.some((player) => player.seatId === controllerSeatId));
+      const positions = robots(item.robots, board.board);
+      let exploration;
+      if (item.exploration !== undefined) {
+        const e = fields(item.exploration, ['version', 'moveCount']);
+        const version = integer(e.version);
+        exploration = { version, moveCount: integer(e.moveCount, 0, version) };
+      }
+      check(exploration?.moveCount ? true : sameRobots(positions, round.startRobots));
+      return { ...result, phase: 'exploring', controllerSeatId, robots: positions, ...(exploration ? { exploration } : {}) };
+    }
+    return { ...result, phase: 'round-result' };
   }
   check(round.number === completedRounds + 1 && usedTargetIds.length === completedRounds + 1);
   check(sameRobots(base.officialRobots, round.startRobots));

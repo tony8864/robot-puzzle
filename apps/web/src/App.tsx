@@ -16,7 +16,7 @@ import type { LocalMatchController } from './local/controller';
 
 const PHASE_LABELS = {
   preparing: 'Preparing', thinking: 'Thinking', bidding: 'Bidding',
-  demonstrating: 'Demonstration', 'round-result': 'Round complete', finished: 'Match finished',
+  demonstrating: 'Demonstration', 'round-result': 'Round complete', exploring: 'Exploration', finished: 'Match finished',
 };
 
 export function App({ controller, onNewMatch }: {

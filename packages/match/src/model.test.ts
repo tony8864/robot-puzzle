@@ -9,7 +9,7 @@ import type {
 } from './index';
 
 test('public entry exposes agreed rules and implemented creation/preparation functions', () => {
-  expect(entry.MATCH_PHASES).toEqual(['preparing', 'thinking', 'bidding', 'demonstrating', 'round-result', 'finished']);
+  expect(entry.MATCH_PHASES).toEqual(['preparing', 'thinking', 'bidding', 'demonstrating', 'round-result', 'exploring', 'finished']);
   expect(entry.MATCH_ROUND_COUNT).toBe(10);
   expect(entry.BIDDING_WINDOW_MS).toBe(60_000);
   expect(entry.createMatch).toBeTypeOf('function');

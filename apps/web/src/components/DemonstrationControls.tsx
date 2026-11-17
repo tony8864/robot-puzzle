@@ -13,12 +13,13 @@ export function DemonstrationControls(props: {
   readonly onUndo: () => void;
   readonly onReset: () => void;
   readonly onGiveUp: () => void;
+  readonly exploring?: boolean;
   readonly feedback: string | null;
   readonly disabled?: boolean;
   readonly selectionDisabled?: boolean;
 }) {
   return (
-    <section aria-label="Demonstration controls" className="demo-controls">
+    <section aria-label={props.exploring ? 'Exploration controls' : 'Demonstration controls'} className="demo-controls">
       <div className="demo-controls__movement">
       <div aria-label="Robot selection" className="robot-selection" role="group">
         <div className="robot-selector">
@@ -55,9 +56,9 @@ export function DemonstrationControls(props: {
         <button aria-label="Reset attempt" className="attempt-actions__button" disabled={props.disabled || props.moveCount === 0} onClick={props.onReset} type="button">
           <span aria-hidden="true" className="attempt-actions__icon">⟲</span><span>Reset</span>
         </button>
-        <button aria-label="Give up" className="attempt-actions__button attempt-actions__button--give-up" disabled={props.disabled} onClick={props.onGiveUp} type="button">
+        {!props.exploring && <button aria-label="Give up" className="attempt-actions__button attempt-actions__button--give-up" disabled={props.disabled} onClick={props.onGiveUp} type="button">
           <span aria-hidden="true" className="attempt-actions__icon">×</span><span>Give Up</span>
-        </button>
+        </button>}
       </div>
       <p aria-live="polite" className={`board-preview__status${props.feedback ? '' : ' demo-controls__selection-status'}`}>{props.feedback ?? `${ROBOT_NAMES[props.selectedRobot]} robot selected`}</p>
     </section>

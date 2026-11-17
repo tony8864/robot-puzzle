@@ -107,7 +107,7 @@ test.each([
   { status: 'accepted', reason: 'same-bid' }, { status: 'no-op' }, { status: 'rejected' },
   { status: 'no-op', reason: 'deadline-not-due' }, { status: 'no-op', reason: 'no-active-deadline' },
   { status: 'rejected', reason: 'invalid-context' }, { status: 'rejected', reason: 'stale-preparation' },
-  { status: 'rejected', reason: 'invalid-preparation' }, { status: 'rejected', reason: 'unknown-player' },
+  { status: 'rejected', reason: 'invalid-preparation' },
   { status: 'rejected', reason: 'SECRET-EXCEPTION' }, { status: 'accepted', credential: 'SECRET' },
   { status: 'rejected', reason: 'not-host', message: 'SECRET' }, [], null,
 ])('rejects malformed/internal/unreviewed command outcome %#', (outcome) => invalid({ ...ack, outcome }));

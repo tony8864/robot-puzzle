@@ -129,15 +129,140 @@
   option is visible above End Room. No game logic changed.
 
 ### 5. Post-round discussion
-- [ ] Let players inspect the board and discuss ideas after a round.
-- The current result modal obscures the board.
-- Agree on:
-  - Whether to change the result presentation or introduce a new phase.
-  - Which robot positions are displayed.
-  - Whether the board is read-only or supports exploration.
-  - Who advances to the next round.
-- Keep exploratory positions separate from official game state if exploration
-  is approved.
+- Approved plan: after any completed round the host may Continue directly or
+  choose Explore Board. No voting. As clarified by the owner, Exploration opens
+  at the original round-start robot positions (superseding the earlier round-end
+  starting-position proposal); only the connected player selected by the host may control it.
+  The host may assign themselves or transfer control at any time; everyone watches
+  synchronized moves. Unlimited moves, Undo and Reset; no bid limit, timer,
+  scoring or target-completion condition. Reset returns to the original round-start
+  positions. Exploration is temporary: official positions, scores/results and the
+  normal next-round flow (final results after round 10) remain unchanged. Only
+  the host advances. The host starts with control; transfers preserve exploration
+  positions and one shared Undo history. Reset clears that history but retains
+  the controller. A disconnected controller pauses movement until reconnect or
+  host reassignment. Host Explore is disabled while someone else controls the
+  board; Manage remains available and tab changes never transfer control.
+  Entry, movement and control management are implemented below; the earlier UI
+  checkpoints retain their historical verification details.
+- [x] Initial UI step (entry enabled by the in-match shell below): add a disabled secondary-blue Explore Board
+  button above the primary-yellow Continue button in the existing result modal.
+  Show both only to the host for all outcomes/rounds. Continue retains its handler
+  and guards; round 10 now uses the same Continue label and still opens final
+  results. Existing outcome messages, guest waiting and recovery are unchanged.
+  No new phase, board interaction, command or backend change. Verification:
+  70 component/Continue-flow tests, frontend/E2E typechecks and four browser
+  cases passed. Full ten-round play covers success, unsolved/skipped outcomes,
+  host-only disabled exploration and round-10 final results; responsive checks
+  cover stacked buttons, requested colors, equal widths and short-screen fit.
+  Short-mobile screenshot reviewed; whitespace check passed. Physical Safari
+  behavior remains unverified.
+- [x] Authoritative Exploration entry: host-only `exploration.start`, exact
+  match/round context, persisted `exploring` phase (stored match version 6),
+  round-start temporary positions and initial host controller. All clients leave
+  the result modal and read the same phase/board; reconnect restores the snapshot.
+  Duplicate requests use existing durable receipts. Next Round reuses host-only
+  Continue, preserving official positions/scores and final results after round 10.
+  Replaces the earlier local shell described in the historical UI steps below.
+  At this entry-only checkpoint, Movement, Undo/Reset and Give control were
+  disabled; movement was connected in the next step below.
+  Verification: workspace typechecks and frontend production build passed. Rule,
+  protocol, client and Worker suites passed; the initial full test run exposed a
+  new restart-fixture error (it tried to use a demonstration-only helper after
+  round completion). After correcting that fixture, all 20 restart tests passed.
+  Final focused runs passed 170 client/component tests and 44 round/lifecycle
+  tests, including Exploration room closure/expiry. Eight browser cases passed:
+  solved/round-10 entry, shared round-start positions, unchanged official data,
+  host/guest refresh recovery, normal advancement and responsive controls.
+  Worker tests emitted Windows temporary-directory EBUSY cleanup warnings after
+  passing; physical Safari and hosted operation remain unverified.
+- [x] Connect Exploration movement/Undo/Reset: reuse the existing movement engine
+  and controls without a bid limit, scoring or target-completion transition.
+  Only the current controller moves/undoes; Reset restores original round-start
+  positions, clears temporary history and retains control. Both Explore Reset
+  and Manage Reset Board use the same server command. Connected robot selection
+  and the board ring share presentation state. Exploration has no Give Up action.
+  Private history and monotonic versions persist in stored match version 7;
+  snapshots expose only positions/count/version. Stale inputs reject and uncertain
+  actions require exact Retry. Version 6 entry-only records remain readable and
+  upgrade on the first accepted mutation. Official positions/results stay intact.
+  Verification: 203 match-rule tests, 423 shared-contract tests, 172 focused
+  client/component tests, 14 round-command tests and all 33 persistence/recovery
+  tests passed. The broad run found a blocked move in the new server fixture;
+  corrected it to select a legal move and reran that suite successfully. Workspace
+  typechecks, production build and whitespace checks passed. Eight browser cases
+  passed, with the two responsive cases rerun after adding real movement/Undo/Reset
+  checks at 390px and 1280px. Coverage includes reaching the target without scoring,
+  150 retained moves, shared board updates, both Reset buttons, changed temporary
+  positions at Next Round, exact retries, private-history corruption rejection,
+  legacy entry-only upgrade and persisted movement/Undo history across restarts.
+  Windows EBUSY cleanup and runtime alarm warnings were emitted after passing
+  tests; physical Safari and hosted behavior remain unverified. No deployment.
+- [x] Connect host control assignment: Give control accepts only connected room
+  seats, including the host. Server-authoritative transfers preserve positions
+  and shared history and advance the Exploration version; stale controller inputs
+  reject and exact retries use existing receipts. Assigned players get existing
+  movement controls without host actions. Host Explore disables while someone
+  else controls; Manage remains available with Reset Board and Next Round, and
+  tab selection is preserved. Offline seats stay listed but cannot receive control;
+  disconnected controllers retain control and recover by reconnect or host
+  reassignment. No timer, voting or automatic transfer. Stored match version 7 now
+  accepts any seated controller; coordinate frontend/server updates before use.
+  Verification: 204 match tests, 425 shared-contract tests, 176 client/component
+  tests, 15 round-command tests and all 33 persistence/recovery tests passed.
+  Corrected an assignment test whose intended connected target was offline in
+  its fixture and removed a stale negative assertion for the now-reviewed
+  unknown-player rejection; the affected suites passed on rerun. Workspace
+  typechecks, production build, whitespace check and eight browser cases passed.
+  Coverage includes host-only assignment, offline/unknown targets, exact retries,
+  stale versions after transfer, preserving shared Undo, host Reset while watching,
+  taking control back, preserved Manage selection, assigned-guest controls at
+  390px/1280px, disconnect/reconnect and assigned-controller restart recovery.
+  Windows temporary-directory EBUSY and runtime alarm warnings occurred in passing
+  Worker tests. Physical Safari and hosted behavior remain unverified. No commit
+  or deployment performed.
+- [x] Reusable ExplorationTabs presentation: equal-width Explore/gamepad and
+  Manage/users tabs, local selection, keyboard navigation and supplied content
+  slots. Default Explore on each exploration entry; retain selection on control
+  changes and disable Explore when control is assigned elsewhere. Host/phase
+  gates keep it hidden for non-hosts and other phases. No backend/game changes.
+  The in-match host shell below now mounts this component at the desktop
+  right-panel top/mobile below-board position. Authoritative Exploration phase,
+  movement and management actions remain pending.
+  Verification: two isolated browser cases passed at 320px/1280px, covering
+  44px equal-width tabs, selection/content switching, keyboard access, controller
+  changes, new-exploration default and host/phase visibility. Frontend/E2E
+  typechecks and whitespace check passed. No server phase was changed.
+- [x] Historical UI-only entry (superseded by authoritative entry above): Explore Board dismisses the host's result modal
+  and shows the Exploration heading and Explore/Manage UI in the existing match.
+  It is a local presentation choice tied to the completed round; the server and
+  other players remain on round-result. Give control changes only the host's UI
+  selection for design review. Movement, Undo/Reset and shared assignment are
+  not connected; Reset Board is disabled. The board displays the completed
+  round's original starting positions without changing official positions.
+  Next Round uses the existing Continue command, including final results after
+  round 10. Pending/errors/retry remain available. The separate development
+  preview route was removed; it was not the requested entry point.
+  Verification: 67 component tests, frontend/E2E typechecks, production build
+  and eight browser cases passed. Real host-button checks cover entry after
+  a solved round and round 10, default Explore/Manage, guest results remaining
+  unchanged, original round-start display and unchanged server snapshots before
+  Next Round. Reviewed 390px/1280px in-match Manage screenshots. Whitespace
+  check passed. Shared Exploration functionality remains pending.
+- [x] Manage-panel UI-only step: host player list includes every seat, green
+  current-controller status, connected-player Give control callbacks, muted
+  offline labels and the host's (you) marker. Reset Board / Next Round callbacks
+  are stacked below the roster; desktop flex layout anchors them at the bottom.
+  Compose into the existing Manage tab in the host's local UI shell; shared
+  behavior remains pending the authoritative Exploration phase/actions.
+  No optimistic controller state or board mutation inside the component. Opening
+  Exploration and Reset both use original round-start positions when implemented;
+  official next-round positions remain separate. Verification: four isolated
+  desktop/mobile browser cases and frontend/E2E typechecks passed. Checks cover
+  all seats/offline labels, host marker, explicit assignment callbacks, preserved
+  Manage selection and Explore eligibility, action callbacks/disabled states,
+  48px stacked actions and desktop bottom anchoring/mobile flow. No live game
+  behavior or server code changed. Whitespace check passed.
 
 ### 6. Audio
 - [ ] Add optional sound effects for agreed interactions.
@@ -161,15 +286,14 @@
 - Review lobby, thinking/bidding, demonstration, discussion and results screens.
 - Presentation only: no changes to board geometry, movement, or server authority.
 
-## Suggested order
+## Remaining work order
 
-1. Laptop/responsive layout, coordinated with board-coordinate placement.
-2. Board coordinates.
-3. Board colors.
-4. Bid revisions.
-5. Early bidding closure.
-6. Post-round discussion.
-7. Sound effects, then optional music.
+1. Review the completed post-round Exploration flow on real devices and finish release checks.
+2. Sound effects, then separately approved optional music.
+3. Continue real-device/Safari checks alongside each feature.
+
+Board coordinates/colors, the approved desktop layout, bid revisions and early
+bidding closure are implemented in the `v1.1.0` source baseline.
 
 ## Current focus
 

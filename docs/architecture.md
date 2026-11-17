@@ -107,6 +107,7 @@ credentials, identity mappings, history and solver data; parsing invokes no solv
 - **Official positions:** committed across rounds.
 - **Round-start positions:** immutable reset/rollback anchor for all bidders.
 - **Attempt positions:** provisional until success.
+- **Exploration positions:** temporary round-start copy; never official carry-forward.
 
 ```text
 Lobby --host Start--> Preparing --verified target--> Thinking
@@ -115,7 +116,9 @@ Thinking --confirmed host Skip---------------------------> Round Result
 Demonstrating --failure--> next bidder, or Round Result if queue exhausted
 Demonstrating --success---------------------------------> Round Result
 Round Result --host Continue, rounds 1-9--> Preparing
-Round Result --host View Results, round 10--> Finished
+Round Result --host Continue, round 10--> Finished
+Round Result --host Explore Board--> Exploring
+Exploring --host Next Round--> Preparing (1-9) or Finished (10)
 Finished --host New Match--> Lobby --explicit host Start--> Preparing
 ```
 
@@ -246,8 +249,28 @@ insets, limited by available column width; both side panels follow the board hei
 Narrower layouts keep controls below the board and horizontal lobby host buttons; preview CSS is
 separate. Desktop board coordinates use 20px top/left gutters outside the SVG,
 with equal CSS Grid tracks aligned to cells. Mobile hides labels and gutters.
-Discussion changes remain proposals. Round results use a modal;
-final match results use a full-screen view. Moves/Undo animate; Reset moves all
+Round results use a modal. The authenticated host's `exploration.start` command
+enters a persisted `exploring` phase for everyone, with a separate temporary board
+at round-start positions and the host as controller. Host Explore/Manage tabs read
+the authoritative snapshot; guests watch without a result modal. Exploration
+movement/Undo/Reset reuse engine history, without target completion or bid limits.
+The server persists private history and a monotonic action version; snapshots
+contain positions/count/version only. Stale versions reject and exact retries use
+existing receipts. Host-only `exploration.assignControl` validates an online room
+seat, preserves positions/history and advances that same version to invalidate
+delayed inputs from the previous controller. Public controller identity is durable,
+including across disconnection. Reconnect restores it; only an authenticated live
+controller may move/Undo, while host Reset remains available independently.
+The host's tabs retain selection and disable Explore when another player controls;
+assigned guests reuse the movement controls without host management actions.
+Next Round reuses host-authorized
+Continue; official positions, outcomes and scores are untouched. Exploration uses
+stored match version 7; entry-only version 6 records remain readable and upgrade
+on their first accepted Exploration mutation. Restore replays retained moves to
+validate positions/history without a solver. Coordinate web/server
+updates and reload old tabs, whose snapshot parser cannot read the new phase.
+Final match results use
+a full-screen view. Moves/Undo animate; Reset moves all
 robots directly together. Rebind/new attempts/missed versions snap. Animation
 never controls state; reduced motion applies.
 

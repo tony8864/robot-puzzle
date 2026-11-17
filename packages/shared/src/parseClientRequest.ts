@@ -28,7 +28,8 @@ function parseRoom(value: Record<string, unknown>, command: Record<string, unkno
         const descriptor = Object.getOwnPropertyDescriptor(original.command, key);
         return typeof key !== 'string' || !descriptor?.enumerable || !('value' in descriptor);
       }) || original.command.type === 'command.retry' || original.command.type === 'attempt.skipDisconnected' || original.command.type === 'room.end' ||
-        original.command.type === 'bidding.requestEnd' || original.command.type === 'bidding.cancelEnd' || original.command.type === 'bidding.voteEnd') return undefined;
+        original.command.type === 'bidding.requestEnd' || original.command.type === 'bidding.cancelEnd' || original.command.type === 'bidding.voteEnd' ||
+        (typeof original.command.type === 'string' && original.command.type.startsWith('exploration.'))) return undefined;
       const parsed = parseRoom({ ...original, version: PROTOCOL_VERSION }, original.command);
       if (!parsed || parsed.command.type === 'command.retry' || parsed.commandId !== base.commandId || parsed.roomId !== base.roomId) return undefined;
       return { ...base, context: {}, command: { type: 'command.retry', originalRequest: { ...parsed, version: 1 } as LegacyRoomRequest } };
@@ -108,6 +109,31 @@ function parseRoom(value: Record<string, unknown>, command: Record<string, unkno
       const context = roundContext(value.context);
       return context && exactKeys(command, ['type', 'confirmed']) && typeof command.confirmed === 'boolean'
         ? { ...base, context, command: { type: 'round.skip', confirmed: command.confirmed } } : undefined;
+    }
+    case 'exploration.assignControl':
+    case 'exploration.move':
+    case 'exploration.undo':
+    case 'exploration.reset': {
+      const c = value.context;
+      if (!isRecord(c) || !exactKeys(c, ['matchId', 'roundNumber', 'explorationVersion']) || !isNonnegativeInteger(c.explorationVersion)) return undefined;
+      const round = roundContext({ matchId: c.matchId, roundNumber: c.roundNumber });
+      if (!round) return undefined;
+      const context = { ...round, explorationVersion: c.explorationVersion };
+      if (command.type === 'exploration.assignControl') return exactKeys(command, ['type', 'seatId']) && isId(command.seatId)
+        ? { ...base, context, command: { type: 'exploration.assignControl', seatId: command.seatId } } : undefined;
+      if (command.type === 'exploration.undo') return exactKeys(command, ['type'])
+        ? { ...base, context, command: { type: 'exploration.undo' } } : undefined;
+      if (command.type === 'exploration.reset') return exactKeys(command, ['type'])
+        ? { ...base, context, command: { type: 'exploration.reset' } } : undefined;
+      const robotId = ROBOT_IDS.find((id) => id === command.robotId);
+      const direction = DIRECTIONS.find((direction) => direction === command.direction);
+      return exactKeys(command, ['type', 'robotId', 'direction']) && robotId && direction
+        ? { ...base, context, command: { type: command.type, robotId, direction } } : undefined;
+    }
+    case 'exploration.start': {
+      const context = roundContext(value.context);
+      return context && exactKeys(command, ['type'])
+        ? { ...base, context, command: { type: 'exploration.start' } } : undefined;
     }
     case 'round.continue': {
       const context = roundContext(value.context);

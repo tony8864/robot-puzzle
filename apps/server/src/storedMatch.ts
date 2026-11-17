@@ -1,6 +1,6 @@
 import { acceptRoundPreparation, snapshotRoundPreparation, transitionMatch,
   type PreparingMatchState, type ThinkingMatchState, type BiddingMatchState, type DemonstratingMatchState,
-  type RoundResultMatchState, type FinishedMatchState } from '@robot-puzzle/match';
+  type RoundResultMatchState, type ExploringMatchState, type FinishedMatchState } from '@robot-puzzle/match';
 import { RECOMMENDED_ROUND_SETUP_BUDGET } from '@robot-puzzle/puzzles/round-setup';
 import { projectMatchState, type PublicRoomState, type AttemptProjectionMetadata } from '@robot-puzzle/shared';
 import type { StoredRoom } from './roomMembership';
@@ -14,7 +14,9 @@ export type StoredMatch =
   | { readonly version: 3; readonly state: BiddingMatchState | DemonstratingMatchState; readonly attempt?: AttemptProjectionMetadata }
   | { readonly version: 4; readonly state: DemonstratingMatchState; readonly attempt: AttemptProjectionMetadata }
   | { readonly version: 4; readonly state: RoundResultMatchState }
-  | { readonly version: 5; readonly state: FinishedMatchState };
+  | { readonly version: 5; readonly state: FinishedMatchState }
+  | { readonly version: 6; readonly state: ExploringMatchState }
+  | { readonly version: 7; readonly state: ExploringMatchState };
 
 function check(condition: unknown): asserts condition {
   if (!condition) throw new Error('Invalid private match record');
@@ -92,22 +94,46 @@ export function validateStoredMatch(room: PublicRoomState, value: unknown): Stor
     check(canonicalJson(value) === canonicalJson({ version: 5, state: expected }));
     return value as StoredMatch;
   }
-  check(room.status === 'playing' && ['preparing', 'thinking', 'bidding', 'demonstrating', 'round-result'].includes(room.match.phase));
+  check(room.status === 'playing' && ['preparing', 'thinking', 'bidding', 'demonstrating', 'round-result', 'exploring'].includes(room.match.phase));
   check(value && typeof value === 'object');
   const match = value as StoredMatch;
-  check(match.version === 1 || match.version === 2 || match.version === 3 || match.version === 4);
+  check(match.version === 1 || match.version === 2 || match.version === 3 || match.version === 4 || match.version === 6 || match.version === 7);
   const common = { matchId: room.match.matchId,
     players: room.players.map(({ seatId, nickname }) => ({ seatId, nickname })),
     scores: room.match.scores, puzzle: room.puzzle, officialRobots: room.match.officialRobots,
     usedTargetIds: room.match.usedTargetIds, completedRounds: room.match.completedRounds };
-  if (room.match.phase === 'round-result') {
-    check(match.version === 4);
+  if (room.match.phase === 'round-result' || room.match.phase === 'exploring') {
+    check(room.match.phase === 'exploring' ? match.version === 6 || match.version === 7 : match.version === 4);
     const round = room.match.round;
     const target = room.puzzle.targets.find((t) => t.id === round.targetId);
     check(target);
     const expected: RoundResultMatchState = { ...common, phase: 'round-result', completedRounds: room.match.completedRounds,
       round: { number: round.number, target, startRobots: round.startRobots }, outcome: room.match.outcome };
-    check(canonicalJson(value) === canonicalJson({ version: 4, state: expected }));
+    let state: RoundResultMatchState | ExploringMatchState = expected;
+    if (room.match.phase === 'exploring') {
+      state = { ...expected, phase: 'exploring', controllerSeatId: room.hostSeatId, robots: round.startRobots };
+      if (match.version === 7) {
+        check(match.state.phase === 'exploring' && match.state.exploration && room.match.exploration);
+        const controllerSeatId = room.match.controllerSeatId;
+        check(room.players.some((player) => player.seatId === controllerSeatId));
+        const history = match.state.exploration;
+        check(integer(history.version) && Array.isArray(history.moves) && history.moves.length <= history.version);
+        let positions = round.startRobots;
+        for (const move of history.moves) {
+          check(move && typeof move === 'object');
+          const replay = transitionMatch({ ...state, robots: positions, exploration: { version: 0, moves: [] } }, {
+            source: 'player', context: { actorSeatId: room.hostSeatId, hostSeatId: room.hostSeatId, nowMs: 0 },
+            command: { type: 'exploration.move', robotId: move.robotId, direction: move.direction },
+          });
+          check(replay.outcome.status === 'accepted' && replay.state.phase === 'exploring' && replay.state.exploration);
+          check(canonicalJson(move) === canonicalJson(replay.state.exploration.moves[0]));
+          positions = replay.state.robots;
+        }
+        state = { ...state, controllerSeatId: room.match.controllerSeatId, robots: positions,
+          exploration: { version: history.version, moves: history.moves } };
+      }
+    }
+    check(canonicalJson(value) === canonicalJson({ version: match.version, state }));
     check(canonicalJson(projectStoredMatch(room, match)) === canonicalJson(room));
     return match;
   }
@@ -149,7 +175,7 @@ export function validateStoredMatch(room: PublicRoomState, value: unknown): Stor
     return match;
   }
   check(room.match.phase === 'preparing' || room.match.phase === 'thinking');
-  check(match.version !== 3 && match.version !== 4);
+  check(match.version !== 3 && match.version !== 4 && match.version !== 6 && match.version !== 7);
   if (match.version === 1) {
     const expected: PreparingMatchState = { ...unfinished, phase: 'preparing',
       scores: Object.fromEntries(room.players.map((p) => [p.seatId, 0])),

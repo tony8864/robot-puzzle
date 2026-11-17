@@ -20,6 +20,43 @@ const create = (nickname: unknown) => bootstrap({ type: 'room.create', nickname 
 const join = (roomCode: unknown, nickname: unknown = 'Maria') => bootstrap({ type: 'room.join', roomCode, nickname });
 const rejected = (value: unknown) => expect(parseClientRequest(value)).toEqual({ ok: false, error: 'invalid-message' });
 
+test('Exploration entry accepts only an exact command and round context, never a historical descriptor', () => {
+  const source = room({ type: 'exploration.start' });
+  expect(parseClientRequest(source)).toEqual({ ok: true, value: source });
+  for (const context of [{ matchId }, { ...round, roundNumber: 0 }, { ...round, roundNumber: 11 }, { ...round, actorSeatId: commandId }]) {
+    rejected(room({ type: 'exploration.start' }, context));
+  }
+  rejected(room({ type: 'exploration.start', controllerSeatId: commandId }));
+  rejected(room({ type: 'command.retry', originalRequest: { ...source, version: 1 } }, {}));
+});
+
+test('Exploration movement requires valid robot/direction and an exact nonnegative versioned round context', () => {
+  const context = { ...round, explorationVersion: 0 };
+  for (const command of [{ type: 'exploration.move', robotId: 'red', direction: 'up' },
+    { type: 'exploration.undo' }, { type: 'exploration.reset' }]) {
+    const source = room(command, context);
+    expect(parseClientRequest(source)).toEqual({ ok: true, value: source });
+    for (const malformed of [round, { ...context, explorationVersion: -1 }, { ...context, explorationVersion: 0.5 },
+      { ...context, actorSeatId: commandId }, { ...context, roundNumber: 11 }]) rejected(room(command, malformed));
+    rejected(room({ ...command, confirmed: true }, context));
+    rejected(room({ type: 'command.retry', originalRequest: { ...source, version: 1 } }, {}));
+  }
+  rejected(room({ type: 'exploration.move', robotId: 'purple', direction: 'up' }, context));
+  rejected(room({ type: 'exploration.move', robotId: 'red', direction: 'diagonal' }, context));
+});
+
+test('control assignment is versioned and accepts only a valid seat ID with no authority fields', () => {
+  const command = { type: 'exploration.assignControl', seatId: commandId };
+  const context = { ...round, explorationVersion: 3 };
+  const source = room(command, context);
+  expect(parseClientRequest(source)).toEqual({ ok: true, value: source });
+  rejected(room(command, round));
+  rejected(room(command, { ...context, explorationVersion: -1 }));
+  rejected(room({ ...command, seatId: 'invalid' }, context));
+  rejected(room({ ...command, hostSeatId: commandId }, context));
+  rejected(room({ type: 'command.retry', originalRequest: { ...source, version: 1 } }, {}));
+});
+
 test('early bidding requests bind to a round and cancellation binds to the exact request', () => {
   for (const command of [{ type: 'bidding.requestEnd' }, { type: 'bidding.cancelEnd', requestId: commandId },
     { type: 'bidding.voteEnd', requestId: commandId, agree: true }, { type: 'bidding.voteEnd', requestId: commandId, agree: false }]) {

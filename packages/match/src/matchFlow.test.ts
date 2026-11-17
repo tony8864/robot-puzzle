@@ -58,7 +58,7 @@ class ScriptedMatch {
     const fields: Record<MatchState['phase'], readonly string[]> = {
       preparing: ['preparation'], thinking: ['round'], bidding: ['round', 'bids', 'deadlineAtMs'],
       demonstrating: ['round', 'bidderQueue', 'activeBidderIndex', 'attempt'],
-      'round-result': ['round', 'outcome'], finished: [],
+      'round-result': ['round', 'outcome'], exploring: ['round', 'outcome'], finished: [],
     };
     for (const field of ['preparation', 'round', 'bids', 'deadlineAtMs', 'bidderQueue', 'activeBidderIndex', 'attempt', 'outcome']) {
       expect(Object.hasOwn(state, field)).toBe(fields[state.phase].includes(field));

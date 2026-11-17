@@ -1,10 +1,10 @@
 import { env, runInDurableObject } from 'cloudflare:test';
 import { expect, test, vi } from 'vitest';
-import { createMatch, prepareMatchRound, type ThinkingMatchState } from '@robot-puzzle/match';
+import { createMatch, prepareMatchRound, transitionMatch, type ThinkingMatchState } from '@robot-puzzle/match';
 import { starterBoard } from '@robot-puzzle/puzzles';
 import * as setup from '@robot-puzzle/puzzles/round-setup';
 import { projectLobbyState, type RoomRequest } from '@robot-puzzle/shared';
-import { executeLobbyCommand, storedRoom } from '../src/lobbyCommands';
+import { executeLobbyCommand, saveRoom, storedRoom } from '../src/lobbyCommands';
 import { projectStoredMatch } from '../src/storedMatch';
 import { runPreparationAlarm } from '../src/roomPreparation';
 import type { StoredRoom } from '../src/roomMembership';
@@ -43,6 +43,162 @@ function skip(storage: DurableObjectStorage, room: StoredRoom) {
   expect(execute(storage, room, input).outcome.status).toBe('accepted');
   return input;
 }
+
+test('Exploration moves, Undo and Reset are authoritative, versioned, atomic and retry-safe', async () => {
+  await scenario((storage, room) => {
+    skip(storage, room);
+    execute(storage, room, request(room, { type: 'exploration.start' }));
+    const initial = storedRoom(storage)!;
+    const input = (command: RoomRequest['command'], source = storedRoom(storage)!): RoomRequest => {
+      const match = source.match!.state;
+      if (match.phase !== 'exploring') throw new Error('Expected Exploration');
+      return { ...request(source, command), context: { matchId: match.matchId, roundNumber: match.round.number,
+        explorationVersion: match.exploration?.version ?? 0 } } as RoomRequest;
+    };
+    const command = (() => {
+      for (const robotId of ['red', 'blue', 'green', 'yellow'] as const) for (const direction of ['up', 'right', 'down', 'left'] as const) {
+        const command = { type: 'exploration.move' as const, robotId, direction };
+        if (transitionMatch(initial.match!.state, { source: 'player', command, context: {
+          actorSeatId: room.state.hostSeatId, hostSeatId: room.state.hostSeatId, nowMs: 1000 } }).outcome.status === 'accepted') return command;
+      }
+      throw new Error('Missing legal fixture move');
+    })();
+    const move = input(command);
+    expect(execute(storage, initial, move, true).outcome).toEqual({ status: 'rejected', reason: 'not-controller' });
+    const accepted = { ...move, commandId: crypto.randomUUID() } as RoomRequest;
+    expect(execute(storage, initial, accepted).outcome.status).toBe('accepted');
+    const moved = storedRoom(storage)!;
+    expect(moved.match).toMatchObject({ version: 7, state: { exploration: { version: 1, moves: [expect.any(Object)] } } });
+    expect(execute(storage, moved, accepted)).toMatchObject({ duplicate: true, outcome: { status: 'accepted' } });
+    expect(execute(storage, moved, { ...accepted, commandId: crypto.randomUUID() } as RoomRequest).outcome)
+      .toEqual({ status: 'rejected', reason: 'stale-context' });
+    const undo = input({ type: 'exploration.undo' });
+    storage.sql.exec("CREATE TRIGGER fail_explore_move BEFORE INSERT ON membership_replays BEGIN SELECT RAISE(ABORT, 'injected'); END");
+    try { expect(() => execute(storage, moved, undo)).toThrow(); }
+    finally { storage.sql.exec('DROP TRIGGER fail_explore_move'); }
+    expect(storedRoom(storage)).toEqual(moved);
+    expect(execute(storage, moved, undo).outcome.status).toBe('accepted');
+    expect(storedRoom(storage)!.state).toMatchObject({ match: { robots: initial.match!.state.officialRobots,
+      exploration: { version: 2, moveCount: 0 } } });
+    expect(execute(storage, initial, input(command)).outcome.status).toBe('accepted');
+    expect(execute(storage, initial, input({ type: 'exploration.reset' })).outcome.status).toBe('accepted');
+    const reset = storedRoom(storage)!;
+    expect(reset.state).toMatchObject({ match: { robots: initial.match!.state.officialRobots, exploration: { version: 4, moveCount: 0 },
+      scores: initial.match!.state.scores, officialRobots: initial.match!.state.officialRobots } });
+    // Old version 6 entry-only records remain readable, upgrading on the first mutation.
+    const legacy = JSON.parse(JSON.stringify(initial)); legacy.match.version = 6;
+    delete legacy.match.state.exploration; delete legacy.state.match.exploration;
+    storage.sql.exec('UPDATE room_state SET value = ?', JSON.stringify(legacy));
+    const restored = storedRoom(storage)!;
+    expect(execute(storage, restored, input(command, restored)).outcome.status).toBe('accepted');
+    const valid = storage.sql.exec<{ value: string }>('SELECT value FROM room_state').one().value;
+    const corrupt = JSON.parse(valid); corrupt.match.state.exploration.moves[0].to.row = 15;
+    storage.sql.exec('UPDATE room_state SET value = ?', JSON.stringify(corrupt));
+    expect(() => storedRoom(storage)).toThrow();
+    storage.sql.exec('UPDATE room_state SET value = ?', valid);
+  });
+});
+
+test.each([false, true])('Exploration is host-only, durable and retry-safe; Next Round preserves official data (final=%s)', async (final) => {
+  await scenario((storage, room) => {
+    expect(execute(storage, room, request(room, { type: 'exploration.start' })).outcome).toEqual({ status: 'rejected', reason: 'wrong-phase' });
+    skip(storage, room);
+    const result = storedRoom(storage)!;
+    const input = request(result, { type: 'exploration.start' });
+    expect(execute(storage, result, input, true).outcome).toEqual({ status: 'rejected', reason: 'not-host' });
+    const stale = { ...input, commandId: crypto.randomUUID(), context: { matchId: crypto.randomUUID(), roundNumber: 1 } } as RoomRequest;
+    expect(execute(storage, result, stale).outcome).toEqual({ status: 'rejected', reason: 'stale-context' });
+    const accepted = { ...input, commandId: crypto.randomUUID() } as RoomRequest;
+    expect(execute(storage, result, accepted).outcome.status).toBe('accepted');
+    const exploring = storedRoom(storage)!;
+    expect(exploring.match).toMatchObject({ version: 7, state: { phase: 'exploring', controllerSeatId: room.state.hostSeatId,
+      robots: room.match!.state.officialRobots, officialRobots: result.match!.state.officialRobots,
+      scores: result.match!.state.scores, completedRounds: final ? 10 : 1 } });
+    expect(execute(storage, result, accepted)).toMatchObject({ duplicate: true, outcome: { status: 'accepted' } });
+    expect(execute(storage, exploring, request(exploring, { type: 'exploration.start' })).outcome).toEqual({ status: 'rejected', reason: 'wrong-phase' });
+    expect(storedRoom(storage)).toEqual(exploring);
+    const next = request(exploring, { type: 'round.continue' });
+    expect(execute(storage, exploring, next, true).outcome).toEqual({ status: 'rejected', reason: 'not-host' });
+    expect(execute(storage, exploring, { ...next, commandId: crypto.randomUUID() } as RoomRequest).outcome.status).toBe('accepted');
+    expect(storedRoom(storage)!.match!.state).toMatchObject({ phase: final ? 'finished' : 'preparing',
+      officialRobots: result.match!.state.officialRobots, scores: result.match!.state.scores });
+  }, final);
+});
+
+test('control assignment validates host, online seat and version; transfers and host Reset preserve shared state', async () => {
+  await scenario((storage, room) => {
+    skip(storage, room);
+    execute(storage, room, request(room, { type: 'exploration.start' }));
+    const hostSeat = room.state.hostSeatId, guestSeat = room.state.players[1].seatId;
+    const input = (command: RoomRequest['command']): RoomRequest => {
+      const current = storedRoom(storage)!;
+      const m = current.match!.state;
+      if (m.phase !== 'exploring') throw new Error('Expected Exploration');
+      return { ...request(current, command), context: { matchId: m.matchId, roundNumber: m.round.number,
+        explorationVersion: m.exploration?.version ?? 0 } } as RoomRequest;
+    };
+    const assign = () => input({ type: 'exploration.assignControl', seatId: guestSeat });
+    expect(execute(storage, room, assign(), true).outcome).toEqual({ status: 'rejected', reason: 'not-host' });
+    expect(execute(storage, room, input({ type: 'exploration.assignControl', seatId: crypto.randomUUID() })).outcome)
+      .toEqual({ status: 'rejected', reason: 'unknown-player' });
+    expect(execute(storage, room, assign()).outcome).toEqual({ status: 'rejected', reason: 'player-offline' });
+    const offline = storedRoom(storage)!;
+    saveRoom(storage, { ...offline, state: { ...offline.state, players: offline.state.players.map((p) => ({ ...p, connected: true })) } });
+    const initial = storedRoom(storage)!;
+    let command: Extract<RoomRequest['command'], { type: 'exploration.move' }> | undefined;
+    for (const robotId of ['red', 'blue', 'green', 'yellow'] as const) for (const direction of ['up', 'right', 'down', 'left'] as const) {
+      const candidate = { type: 'exploration.move' as const, robotId, direction };
+      if (transitionMatch(initial.match!.state, { source: 'player', context: { actorSeatId: hostSeat, hostSeatId: hostSeat, nowMs: 0 },
+        command: candidate }).outcome.status === 'accepted') command = candidate;
+    }
+    if (!command) throw new Error('Expected legal move');
+    expect(execute(storage, room, input(command)).outcome.status).toBe('accepted');
+    const moved = storedRoom(storage)!;
+    const delayedMove = input(command);
+    const transfer = assign();
+    expect(execute(storage, room, transfer).outcome.status).toBe('accepted');
+    const shared = storedRoom(storage)!;
+    expect(shared.match!.state).toMatchObject({ phase: 'exploring', controllerSeatId: guestSeat,
+      robots: (moved.match!.state as import('@robot-puzzle/match').ExploringMatchState).robots,
+      exploration: { version: 2, moves: expect.any(Array) } });
+    expect(execute(storage, room, delayedMove).outcome).toEqual({ status: 'rejected', reason: 'stale-context' });
+    expect(execute(storage, room, input(command)).outcome).toEqual({ status: 'rejected', reason: 'not-controller' });
+    expect(execute(storage, room, input({ type: 'exploration.undo' }), true).outcome.status).toBe('accepted');
+    expect(execute(storage, room, input(command), true).outcome.status).toBe('accepted');
+    expect(execute(storage, room, input({ type: 'exploration.reset' })).outcome.status).toBe('accepted');
+    const reset = storedRoom(storage)!;
+    expect(reset.match!.state).toMatchObject({ controllerSeatId: guestSeat, robots: initial.match!.state.officialRobots,
+      scores: initial.match!.state.scores, exploration: { version: 5, moves: [] } });
+    const reclaim = input({ type: 'exploration.assignControl', seatId: hostSeat });
+    storage.sql.exec("CREATE TRIGGER fail_control BEFORE INSERT ON membership_replays BEGIN SELECT RAISE(ABORT, 'injected'); END");
+    try { expect(() => execute(storage, room, reclaim)).toThrow(); }
+    finally { storage.sql.exec('DROP TRIGGER fail_control'); }
+    expect(storedRoom(storage)).toEqual(reset);
+    expect(execute(storage, room, reclaim).outcome.status).toBe('accepted');
+    const reclaimed = storedRoom(storage)!;
+    expect(execute(storage, room, transfer)).toMatchObject({ duplicate: true, outcome: { status: 'accepted' } });
+    expect(storedRoom(storage)).toEqual(reclaimed);
+    expect(execute(storage, room, input(command), true).outcome).toEqual({ status: 'rejected', reason: 'not-controller' });
+  });
+});
+
+test('Exploration entry rolls back atomically when persistence fails', async () => {
+  await scenario((storage, room) => {
+    skip(storage, room);
+    const result = storedRoom(storage)!;
+    const input = request(result, { type: 'exploration.start' });
+    storage.sql.exec("CREATE TRIGGER fail_explore BEFORE INSERT ON membership_replays BEGIN SELECT RAISE(ABORT, 'injected'); END");
+    try { expect(() => execute(storage, result, input)).toThrow(); }
+    finally { storage.sql.exec('DROP TRIGGER fail_explore'); }
+    expect(storedRoom(storage)).toEqual(result);
+    expect(execute(storage, result, input).outcome.status).toBe('accepted');
+    const valid = storage.sql.exec<{ value: string }>('SELECT value FROM room_state').one().value;
+    const corrupt = JSON.parse(valid); corrupt.match.state.controllerSeatId = room.state.players[1].seatId;
+    storage.sql.exec('UPDATE room_state SET value = ?', JSON.stringify(corrupt));
+    expect(() => storedRoom(storage)).toThrow();
+    storage.sql.exec('UPDATE room_state SET value = ?', valid);
+  });
+});
 
 test('Skip requires current host, exact context and confirmation; no score/position change', async () => {
   await scenario((storage, room) => {

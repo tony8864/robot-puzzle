@@ -108,6 +108,22 @@ for (const step of proof.internalProof) success = transitionMatch(success, {
   source: 'player', context: { actorSeatId: roster[0].seatId, hostSeatId: roster[0].seatId, nowMs: 99_000 }, command: { type: 'attempt.move', ...step },
 }).state;
 if (success.phase !== 'round-result' || success.outcome.kind !== 'success') throw new Error('Real success required.');
+
+test.each([skipped, exhausted, success])('Exploration snapshot preserves %s result and validates controller/board', (result) => {
+  const exploring = transitionMatch(result, { source: 'player', context: {
+    actorSeatId: roster[0].seatId, hostSeatId: roster[0].seatId, nowMs: 100_000 }, command: { type: 'exploration.start' } }).state;
+  const room = projected(exploring);
+  if (room.status !== 'playing' || room.match.phase !== 'exploring' || !('round' in result)) throw new Error('Expected Exploration');
+  expect(value(parsePublicRoomState(room))).toEqual(room);
+  expect(room.match).toMatchObject({ controllerSeatId: roster[0].seatId, robots: result.round.startRobots,
+    officialRobots: result.officialRobots, scores: result.scores });
+  invalid({ ...room, match: { ...room.match, controllerSeatId: uuid(999) } });
+  invalid({ ...room, match: { ...room.match, robots: { ...room.match.robots, red: { row: 7, column: 7 } } } });
+  invalid({ ...room, match: { ...room.match, deadlineAtMs: 1000 } });
+  invalid({ ...room, match: { ...room.match, completedRounds: 0 } });
+  for (const exploration of [{ version: -1, moveCount: 0 }, { version: 1, moveCount: 2 },
+    { version: 1, moveCount: 0, moves: [] }]) invalid({ ...room, match: { ...room.match, exploration } });
+});
 let finished: MatchState = initial();
 for (let round = 1; round <= 10; round++) {
   finished = prepareMatchRound(finished, { ...options, candidateOrder: starterBoard.targets.map((target) => target.id) }).state;

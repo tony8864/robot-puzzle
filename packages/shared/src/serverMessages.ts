@@ -4,11 +4,11 @@ import type { PublicRoomState } from './publicState';
 
 export const PUBLIC_NO_OP_REASONS = ['same-bid', 'blocked-move', 'empty-undo', 'already-reset', 'snapshot-requested'] as const;
 export const PUBLIC_REJECTION_REASONS = [
-  'wrong-phase', 'not-host', 'not-active-bidder', 'confirmation-required', 'invalid-bid',
+  'wrong-phase', 'not-host', 'not-active-bidder', 'not-controller', 'confirmation-required', 'invalid-bid',
   'bid-increase', 'bidding-closed', 'bid-limit', 'match-finished', 'stale-context',
   'not-enough-players', 'preview-changed', 'command-id-conflict', 'preparation-cooldown', 'retry-not-found',
   'bidder-connected', 'disconnect-grace-active', 'bidding-request-cooldown',
-  'room-closed', 'room-expired',
+  'room-closed', 'room-expired', 'unknown-player', 'player-offline',
 ] as const;
 export const BOOTSTRAP_REJECTION_REASONS = [
   'not-authenticated', 'room-not-found', 'room-full', 'match-started', 'seat-not-found',

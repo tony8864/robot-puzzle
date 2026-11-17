@@ -8,6 +8,7 @@ export type {
   BiddingMatchState,
   CompletedRoundCount,
   DemonstratingMatchState,
+  ExploringMatchState,
   FinishedMatchState,
   MatchBid,
   MatchPhase,

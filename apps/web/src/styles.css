@@ -1481,6 +1481,41 @@ body {
     margin-top: 0.25rem;
   }
 }
+.exploration-tabs { display: flex; flex-direction: column; gap: 12px; min-width: 0; width: 100%; }
+.exploration-tabs__bar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border: 1px solid #263852; border-radius: 10px; background: #111F35; }
+.exploration-tabs__bar button { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; height: 44px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: #A8BED8; font: inherit; font-size: 14px; cursor: pointer; }
+.exploration-tabs__bar button[aria-selected="true"] { background: #213754; color: #E8F0FA; font-weight: 600; }
+.exploration-tabs__bar button:disabled { opacity: 0.5; cursor: not-allowed; }
+.exploration-tabs__bar button:focus-visible { outline: 2px solid #4da3ff; outline-offset: 2px; }
+.exploration-tabs__bar svg { flex: none; }
+
+.exploration-manage { box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; width: 100%; min-width: 0; padding: 12px; border: 1px solid #263852; border-radius: 10px; background: #111F35; }
+.exploration-manage__heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex: none; }
+.exploration-manage__heading h2 { margin: 0; color: #E8F0FA; font-size: 14px; font-weight: 600; }
+.exploration-manage__heading > span, .exploration-manage__offline { color: #A8BED8; font-size: 12px; }
+.exploration-manage__players { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.exploration-manage__row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; padding: 8px; border: 1px solid #263852; border-radius: 8px; background: #182A44; }
+.exploration-manage__name { min-width: 0; color: #E8F0FA; font-size: 14px; overflow-wrap: anywhere; }
+.exploration-manage__name > span { color: #A8BED8; font-size: 12px; white-space: nowrap; }
+.exploration-manage__status { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
+.exploration-manage__controller { display: flex; align-items: center; gap: 4px; color: #4DD4A0; font-size: 12px; white-space: nowrap; }
+.exploration-manage button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px 12px; border: 1px solid #3A5272; border-radius: 10px; background: #213754; color: #E8F0FA; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.exploration-manage button:disabled { opacity: 0.5; cursor: not-allowed; }
+.exploration-manage button:focus-visible { outline: 2px solid #4da3ff; outline-offset: 2px; }
+.exploration-manage button:active:not(:disabled) { filter: brightness(1.1); }
+@media (hover: hover) { .exploration-manage button:hover:not(:disabled) { filter: brightness(1.1); } }
+.exploration-manage__actions { display: flex; flex-direction: column; flex: none; gap: 8px; margin-top: 12px; }
+.exploration-manage__actions button { width: 100%; min-height: 48px; font-size: 14px; }
+.exploration-manage__actions .exploration-manage__next { border-color: #FFD166; background: #FFD166; color: #111F35; }
+@media (min-width: 1280px) and (min-aspect-ratio: 4 / 3) {
+  .exploration-tabs { flex: 1; min-height: 0; }
+  .exploration-tabs > [role="tabpanel"]:not([hidden]) { display: flex; flex: 1; min-height: 0; }
+  .exploration-manage { flex: 1; min-height: 0; }
+  .exploration-manage__players { min-height: 0; overflow-y: auto; }
+  .exploration-manage__row { flex: none; }
+  .exploration-manage__actions { margin-top: auto; }
+}
+
 /* Only the dialog's contents remain interactive while a round result is open. */
 .round-result-overlay {
   position: fixed;
@@ -1566,6 +1601,9 @@ body {
 }
 
 .round-result-panel__action {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   margin-top: 24px;
 }
 
@@ -1590,6 +1628,9 @@ body {
   opacity: 0.6;
   cursor: wait;
 }
+
+.round-result-panel__action .round-result-panel__explore { background: #213754; color: #E8F0FA; }
+.round-result-panel__action .round-result-panel__explore:disabled { cursor: not-allowed; }
 
 .match-results {
   box-sizing: border-box;

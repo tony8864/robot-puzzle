@@ -4,6 +4,7 @@ import { advanceRound, skipRound } from './advancement';
 import { submitBid } from './bidding';
 import { closeBidding, normalizeBiddingDeadline } from './deadline';
 import { abandonAttempt, handleAttemptCommand } from './demonstration';
+import { handleExplorationCommand } from './exploration';
 import type { MatchState } from './model';
 import { acceptRoundPreparation } from './preparation';
 import { accepted, noOp, rejected } from './results';
@@ -17,11 +18,13 @@ function supportedAction(value: unknown): value is MatchAction {
   if (!isRecord(value) || !isRecord(value.command)) return false;
   if (value.source === 'player') {
     const command = value.command;
+    if (command.type === 'exploration.start') return true;
+    if (command.type === 'exploration.assignControl') return typeof command.seatId === 'string' && command.seatId.trim().length > 0;
     if (command.type === 'round.skip') return typeof command.confirmed === 'boolean';
-    if (command.type === 'attempt.move') {
+    if (command.type === 'attempt.move' || command.type === 'exploration.move') {
       return ROBOT_IDS.some((id) => id === command.robotId) && DIRECTIONS.some((direction) => direction === command.direction);
     }
-    return command.type === 'bid.submit' || command.type === 'attempt.undo' ||
+    return command.type === 'exploration.undo' || command.type === 'exploration.reset' || command.type === 'bid.submit' || command.type === 'attempt.undo' ||
       command.type === 'attempt.reset' || command.type === 'attempt.giveUp';
   }
   if (value.source !== 'controller') return false;
@@ -48,6 +51,15 @@ export function transitionMatch(state: MatchState, action: MatchAction): MatchTr
   if (action.source === 'player') {
     if (normalized.phase === 'finished') return rejected(normalized, 'match-finished');
     if (!normalized.players.some((player) => player.seatId === action.context.actorSeatId)) return rejected(normalized, 'unknown-player');
+    if (action.command.type === 'exploration.start') {
+      if (normalized.phase !== 'round-result') return rejected(normalized, 'wrong-phase');
+      if (action.context.actorSeatId !== action.context.hostSeatId) return rejected(normalized, 'not-host');
+      return accepted({ ...normalized, phase: 'exploring', controllerSeatId: action.context.hostSeatId,
+        robots: normalized.round.startRobots, exploration: { version: 0, moves: [] } });
+    }
+    if (action.command.type === 'exploration.assignControl' || action.command.type === 'exploration.move' || action.command.type === 'exploration.undo' || action.command.type === 'exploration.reset') {
+      return handleExplorationCommand(normalized, action.context, action.command);
+    }
     if (action.command.type === 'bid.submit') {
       return submitBid(normalized, action.context.actorSeatId, action.command.value, action.context.nowMs);
     }

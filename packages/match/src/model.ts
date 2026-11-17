@@ -1,9 +1,9 @@
-import type { AttemptState, RobotPositions, Target } from '@robot-puzzle/game-engine';
+import type { AttemptMove, AttemptState, RobotPositions, Target } from '@robot-puzzle/game-engine';
 import type { PuzzleBoard } from '@robot-puzzle/puzzles';
 import type { RoundSetupResult } from '@robot-puzzle/puzzles/round-setup';
 
 export const MATCH_PHASES = [
-  'preparing', 'thinking', 'bidding', 'demonstrating', 'round-result', 'finished',
+  'preparing', 'thinking', 'bidding', 'demonstrating', 'round-result', 'exploring', 'finished',
 ] as const;
 export const MATCH_ROUND_COUNT = 10 as const;
 export const BIDDING_WINDOW_MS = 60_000 as const;
@@ -108,10 +108,20 @@ export interface FinishedMatchState extends MatchBase {
   // Standings and all shared winners will be derived from players and scores.
 }
 
+/** Temporary post-round board; official positions and the completed result stay intact. */
+export interface ExploringMatchState extends Omit<RoundResultMatchState, 'phase'> {
+  readonly phase: 'exploring';
+  readonly controllerSeatId: SeatId;
+  readonly robots: RobotPositions;
+  /** Missing only on retained entry-only records. Versions never rewind on Undo/Reset. */
+  readonly exploration?: { readonly version: number; readonly moves: readonly AttemptMove[] };
+}
+
 export type MatchState =
   | PreparingMatchState
   | ThinkingMatchState
   | BiddingMatchState
   | DemonstratingMatchState
   | RoundResultMatchState
+  | ExploringMatchState
   | FinishedMatchState;

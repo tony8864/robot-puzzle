@@ -56,10 +56,11 @@ function publicMatch(input: MatchProjectionInput): unknown {
   if (match.phase === 'bidding') return {
     ...common, round, bids: list(match.bids, 1, 6).map((_, index) => bid(match.bids[index])), deadlineAtMs: match.deadlineAtMs,
   };
-  if (match.phase === 'round-result') {
+  if (match.phase === 'round-result' || match.phase === 'exploring') {
     const outcome = match.outcome;
     check(outcome.kind === 'success' || outcome.kind === 'all-bidders-gave-up' || outcome.kind === 'no-bid-skip');
-    return { ...common, round, outcome: outcome.kind === 'success'
+    return { ...common, round, ...(match.phase === 'exploring' ? { controllerSeatId: match.controllerSeatId, robots: positions(match.robots),
+      ...(match.exploration ? { exploration: { version: match.exploration.version, moveCount: match.exploration.moves.length } } : {}) } : {}), outcome: outcome.kind === 'success'
       ? { kind: outcome.kind, winnerSeatId: outcome.winnerSeatId, winningBid: outcome.winningBid, moveCount: outcome.moveCount }
       : { kind: outcome.kind } };
   }

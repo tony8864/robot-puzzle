@@ -60,7 +60,7 @@ export class Room extends RoomBase {
           command: { type: 'room.end', confirmed: true },
         });
         if (mode === 'error') await runPreparationAlarm(this.ctx.storage, match.job.dueAtMs, () => { throw new Error('private failure'); });
-        const attemptMode = mode === 'skipped-disconnect' || mode === 'disconnect-grace' || mode === 'attempt' || mode === 'undo' || mode === 'success' || mode === 'later-bidder' || mode === 'round-result' || mode === 'continued' || mode === 'finished' || mode === 'returned-lobby';
+        const attemptMode = mode === 'skipped-disconnect' || mode === 'disconnect-grace' || mode === 'attempt' || mode === 'undo' || mode === 'success' || mode === 'later-bidder' || mode === 'round-result' || mode === 'exploring' || mode === 'continued' || mode === 'finished' || mode === 'returned-lobby';
         if (mode === 'thinking' || mode === 'bidding' || mode === 'overdue-bidding' || attemptMode) await runPreparationAlarm(this.ctx.storage, match.job.dueAtMs);
         if (mode === 'bidding' || mode === 'overdue-bidding' || attemptMode) {
           const room = storedRoom(this.ctx.storage)!;
@@ -122,7 +122,42 @@ export class Room extends RoomBase {
               }
             } else {
               apply({ type: 'attempt.giveUp' });
-              if (mode === 'round-result' || mode === 'continued' || mode === 'finished' || mode === 'returned-lobby') apply({ type: 'attempt.giveUp' }, 1);
+              if (mode === 'round-result' || mode === 'exploring' || mode === 'continued' || mode === 'finished' || mode === 'returned-lobby') apply({ type: 'attempt.giveUp' }, 1);
+              if (mode === 'exploring') {
+                const result = storedRoom(this.ctx.storage)!;
+                const entered = executeLobbyCommand(this.ctx.storage, 'host', players[0].seatId, {
+                  version: 2, commandId: crypto.randomUUID(), roomId: result.state.roomId,
+                  context: { matchId: state.matchId, roundNumber: 1 }, command: { type: 'exploration.start' },
+                }, undefined, undefined, () => match.job!.dueAtMs + 60001);
+                if (entered?.outcome.status !== 'accepted') throw new Error('Expected Exploration');
+                const exploring = storedRoom(this.ctx.storage)!.match!.state;
+                if (exploring.phase !== 'exploring') throw new Error('Expected Exploration');
+                const move = ['red', 'blue', 'green', 'yellow'].flatMap((robotId) => ['up', 'right', 'down', 'left'].map((direction) =>
+                  ({ type: 'exploration.move', robotId, direction } as const))).find((command) => transitionMatch(exploring, {
+                    source: 'player', context: { actorSeatId: players[0].seatId, hostSeatId: players[0].seatId, nowMs: 0 },
+                    command: command as import('@robot-puzzle/match').PlayerMatchCommand,
+                  }).outcome.status === 'accepted');
+                if (!move) throw new Error('Expected legal exploration move');
+                for (const command of [move, { type: 'exploration.undo' }, move]) {
+                  const current = storedRoom(this.ctx.storage)!;
+                  const m = current.match!.state;
+                  if (m.phase !== 'exploring') throw new Error('Expected Exploration');
+                  executeLobbyCommand(this.ctx.storage, 'host', players[0].seatId, {
+                    version: 2, commandId: crypto.randomUUID(), roomId: current.state.roomId,
+                    context: { matchId: m.matchId, roundNumber: m.round.number, explorationVersion: m.exploration?.version ?? 0 }, command,
+                  } as import('@robot-puzzle/shared').RoomRequest, undefined, undefined, () => match.job!.dueAtMs + 60001);
+                }
+                const current = storedRoom(this.ctx.storage)!;
+                saveRoom(this.ctx.storage, { ...current, state: { ...current.state, players: current.state.players.map((p) => ({ ...p, connected: true })) } });
+                const assigned = executeLobbyCommand(this.ctx.storage, 'host', players[0].seatId, {
+                  version: 2, commandId: crypto.randomUUID(), roomId: current.state.roomId,
+                  context: { matchId: state.matchId, roundNumber: 1, explorationVersion: 3 },
+                  command: { type: 'exploration.assignControl', seatId: players[1].seatId },
+                }, undefined, undefined, () => match.job!.dueAtMs + 60001);
+                if (assigned?.outcome.status !== 'accepted') throw new Error('Expected control assignment');
+                const transferred = storedRoom(this.ctx.storage)!;
+                saveRoom(this.ctx.storage, { ...transferred, state: { ...transferred.state, players: current.state.players } });
+              }
               if (mode === 'continued' || mode === 'finished' || mode === 'returned-lobby') {
                 let result = storedRoom(this.ctx.storage)!;
                 if (result.match?.state.phase !== 'round-result') throw new Error('Expected result');

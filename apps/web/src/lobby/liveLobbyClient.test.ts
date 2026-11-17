@@ -297,6 +297,32 @@ test.each(['result-first', 'snapshot-first'] as const)('Continue is non-optimist
   expect(client.getSnapshot()).toMatchObject({ room: next, round: 'idle' });
 });
 
+test.each(['result-first', 'snapshot-first'] as const)('Explore waits for authoritative result/snapshot (%s)', (order) => {
+  const { client, bind, initialRoom, sockets, snapshot, result } = setup();
+  const room = roundResultRoomFixture(withGuest(initialRoom));
+  if (room.status !== 'playing' || room.match.phase !== 'round-result') throw new Error('Expected result');
+  client.connect(); bind(room); client.startExploration(); client.startExploration();
+  expect(sockets[0].sent).toHaveLength(1);
+  expect(JSON.parse(sockets[0].sent[0])).toMatchObject({ command: { type: 'exploration.start' },
+    context: { matchId: room.match.matchId, roundNumber: room.match.round.number } });
+  expect(client.getSnapshot()).toMatchObject({ room, round: 'pending' });
+  const next: PublicRoomState = { ...room, revision: 4, match: { ...room.match, phase: 'exploring',
+    controllerSeatId: room.hostSeatId, robots: room.match.round.startRobots } };
+  if (order === 'result-first') result(4); else snapshot(next);
+  expect(client.getSnapshot().round).toBe('pending');
+  if (order === 'result-first') snapshot(next); else result(4);
+  expect(client.getSnapshot()).toMatchObject({ room: next, round: 'idle' });
+  client.startExploration(); expect(sockets[0].sent).toHaveLength(1);
+  client.continueRound();
+  expect(JSON.parse(sockets[0].sent[1]).command.type).toBe('round.continue');
+});
+
+test('guest cannot enter Exploration', () => {
+  const guest = setup(false);
+  guest.client.connect(); guest.bind(roundResultRoomFixture(withGuest(guest.initialRoom))); guest.client.startExploration();
+  expect(guest.sockets[0].sent).toHaveLength(0);
+});
+
 test('guest cannot Continue and host sends View Results as the same round-10 command', () => {
   const guest = setup(false);
   guest.client.connect(); guest.bind(roundResultRoomFixture(withGuest(guest.initialRoom))); guest.client.continueRound();
@@ -305,6 +331,116 @@ test('guest cannot Continue and host sends View Results as the same round-10 com
   const room = roundResultRoomFixture(withGuest(host.initialRoom), true);
   host.client.connect(); host.bind(room); host.client.continueRound();
   expect(JSON.parse(host.sockets[0].sent[0])).toMatchObject({ context: { roundNumber: 10 }, command: { type: 'round.continue' } });
+});
+
+test('Explore cannot be requested by a guest, during Thinking or while disconnected', () => {
+  for (const mode of ['guest', 'thinking', 'disconnected'] as const) {
+    const f = setup(mode !== 'guest');
+    const room = mode === 'thinking' ? thinkingRoomFixture(withGuest(f.initialRoom)) : roundResultRoomFixture(withGuest(f.initialRoom));
+    f.client.connect(); f.bind(room);
+    if (mode === 'disconnected') f.client.disconnect();
+    f.client.startExploration();
+    expect(f.sockets[0].sent).toHaveLength(0);
+  }
+});
+
+test('uncertain Explore can only retry its exact command after reconnect into Exploration', async () => {
+  vi.useFakeTimers();
+  const f = setup();
+  const room = roundResultRoomFixture(withGuest(f.initialRoom));
+  if (room.status !== 'playing' || room.match.phase !== 'round-result') throw new Error('Expected result');
+  f.client.connect(); f.bind(room); f.client.startExploration();
+  const original = f.sockets[0].sent[0];
+  await vi.advanceTimersByTimeAsync(10_000);
+  expect(f.client.getSnapshot().round).toBe('retry');
+  f.client.disconnect(); f.client.connect();
+  const next: PublicRoomState = { ...room, revision: 4, match: { ...room.match, phase: 'exploring',
+    controllerSeatId: room.hostSeatId, robots: room.match.round.startRobots } };
+  f.bind(next); f.client.continueRound(); f.client.startExploration(); f.client.retry(); f.client.retry();
+  expect(f.sockets[1].sent).toEqual([original]);
+  f.result(4);
+  expect(f.client.getSnapshot()).toMatchObject({ room: next, round: 'idle' });
+});
+
+test('Exploration movement captures robot/version, blocks extra taps and retries exactly across reconnect', async () => {
+  vi.useFakeTimers();
+  const f = setup(); const base = roundResultRoomFixture(withGuest(f.initialRoom));
+  if (base.status !== 'playing' || base.match.phase !== 'round-result') throw new Error('Expected result');
+  const room: PublicRoomState = { ...base, match: { ...base.match, phase: 'exploring', controllerSeatId: base.hostSeatId,
+    robots: base.match.round.startRobots, exploration: { version: 0, moveCount: 0 } } };
+  f.client.connect(); f.bind(room);
+  f.client.move('blue', 'right'); f.client.undo(); f.client.reset(); f.client.giveUp();
+  const original = f.sockets[0].sent[0];
+  expect(f.sockets[0].sent).toHaveLength(1);
+  expect(JSON.parse(original)).toMatchObject({ command: { type: 'exploration.move', robotId: 'blue', direction: 'right' },
+    context: { explorationVersion: 0 } });
+  expect(f.client.getSnapshot()).toMatchObject({ room, attempt: 'pending' });
+  await vi.advanceTimersByTimeAsync(10_000);
+  expect(f.client.getSnapshot().attempt).toBe('retry');
+  f.client.disconnect(); f.client.connect(); f.bind(room);
+  f.client.move('red', 'up'); f.client.retry();
+  expect(f.sockets[1].sent).toEqual([original]);
+  f.result(room.revision, { status: 'no-op', reason: 'blocked-move' });
+  expect(f.client.getSnapshot()).toMatchObject({ room, attempt: 'idle', attemptFeedback: 'That robot cannot move in that direction.' });
+  f.client.undo();
+  expect(JSON.parse(f.sockets[1].sent[1])).toMatchObject({ command: { type: 'exploration.undo' }, context: { explorationVersion: 0 } });
+});
+
+test('guests and disconnected controllers cannot submit Exploration movement', () => {
+  for (const guest of [true, false]) {
+    const f = setup(!guest); const base = roundResultRoomFixture(withGuest(f.initialRoom));
+    if (base.status !== 'playing' || base.match.phase !== 'round-result') throw new Error('Expected result');
+    const room: PublicRoomState = { ...base, match: { ...base.match, phase: 'exploring', controllerSeatId: base.hostSeatId,
+      robots: base.match.round.startRobots, exploration: { version: 0, moveCount: 0 } } };
+    f.client.connect(); f.bind(room); if (!guest) f.client.disconnect();
+    f.client.move('red', 'up'); f.client.undo(); f.client.reset();
+    expect(f.sockets[0].sent).toHaveLength(0);
+  }
+});
+
+test.each(['result-first', 'snapshot-first'] as const)('host assignment waits for authoritative state and keeps exact retries (%s)', async (order) => {
+  vi.useFakeTimers();
+  const f = setup(); const base = roundResultRoomFixture(withGuest(f.initialRoom));
+  if (base.status !== 'playing' || base.match.phase !== 'round-result') throw new Error('Expected result');
+  const room: PublicRoomState = { ...base, players: base.players.map((p) => ({ ...p, connected: true })), match: { ...base.match, phase: 'exploring', controllerSeatId: base.hostSeatId,
+    robots: base.match.round.startRobots, exploration: { version: 0, moveCount: 0 } } };
+  const guestSeat = room.players.find((p) => p.seatId !== room.hostSeatId)!.seatId;
+  f.client.connect(); f.bind(room); f.client.assignExplorationControl(guestSeat); f.client.assignExplorationControl(room.hostSeatId);
+  const original = f.sockets[0].sent[0];
+  expect(f.sockets[0].sent).toHaveLength(1);
+  expect(JSON.parse(original)).toMatchObject({ command: { type: 'exploration.assignControl', seatId: guestSeat },
+    context: { explorationVersion: 0 } });
+  expect(f.client.getSnapshot()).toMatchObject({ room, attempt: 'pending' });
+  await vi.advanceTimersByTimeAsync(10_000); f.client.retry();
+  expect(f.sockets[0].sent).toEqual([original, original]);
+  if (room.status !== 'playing' || room.match.phase !== 'exploring') throw new Error('Expected Exploration');
+  const next: PublicRoomState = { ...room, revision: room.revision + 1, match: { ...room.match, controllerSeatId: guestSeat,
+    exploration: { version: 1, moveCount: 0 } } };
+  if (order === 'result-first') f.result(next.revision); else f.snapshot(next);
+  expect(f.client.getSnapshot().attempt).toBe('pending');
+  if (order === 'result-first') f.snapshot(next); else f.result(next.revision);
+  f.client.move('red', 'up'); expect(f.sockets[0].sent).toHaveLength(2);
+  f.client.reset(); // Host Manage reset stays available while another player controls.
+  expect(JSON.parse(f.sockets[0].sent[2])).toMatchObject({ command: { type: 'exploration.reset' }, context: { explorationVersion: 1 } });
+});
+
+test('guest controllers can move and Undo but cannot assign; offline seats cannot receive control', () => {
+  const f = setup(false); const base = roundResultRoomFixture(withGuest(f.initialRoom));
+  if (base.status !== 'playing' || base.match.phase !== 'round-result') throw new Error('Expected result');
+  const seatId = f.initialRoom.players.find((p) => p.seatId !== base.hostSeatId)!.seatId;
+  const room: PublicRoomState = { ...base, match: { ...base.match, phase: 'exploring', controllerSeatId: seatId,
+    robots: base.match.round.startRobots, exploration: { version: 2, moveCount: 0 } } };
+  f.client.connect(); f.bind(room); f.client.assignExplorationControl(base.hostSeatId);
+  expect(f.sockets[0].sent).toHaveLength(0);
+  f.client.move('blue', 'up');
+  expect(JSON.parse(f.sockets[0].sent[0])).toMatchObject({ command: { type: 'exploration.move' }, context: { explorationVersion: 2 } });
+  const host = setup(); const result = roundResultRoomFixture(withGuest(host.initialRoom));
+  if (result.status !== 'playing' || result.match.phase !== 'round-result') throw new Error('Expected result');
+  const offline: PublicRoomState = { ...result, players: result.players.map((p) => ({ ...p, connected: p.seatId === result.hostSeatId })),
+    match: { ...result.match, phase: 'exploring', controllerSeatId: result.hostSeatId, robots: result.match.round.startRobots } };
+  host.client.connect(); host.bind(offline);
+  host.client.assignExplorationControl(offline.players.find((p) => p.seatId !== offline.hostSeatId)!.seatId);
+  expect(host.sockets[0].sent).toHaveLength(0);
 });
 
 test('uncertain Continue keeps immutable retry across reconnect into Preparing, never creates a second transition', async () => {

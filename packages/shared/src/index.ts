@@ -5,7 +5,7 @@ export {
 } from './clientRequests';
 export type {
   ClientRequest, BootstrapRequest, RoomRequest, GameplayRoomRequest, LegacyRoomRequest, LobbyContext, MatchContext,
-  RoundContext, AttemptContext, PreparationContext, EmptyContext, ClientRequestError, ClientRequestParseResult,
+  RoundContext, AttemptContext, ExplorationContext, PreparationContext, EmptyContext, ClientRequestError, ClientRequestParseResult,
 } from './clientRequests';
 export { parseClientRequest, parseClientRequestJson } from './parseClientRequest';
 export { parseSocketMessageJson, HEARTBEAT_INTERVAL_MS, CONNECTION_LEASE_MS } from './socketMessages';

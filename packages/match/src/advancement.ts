@@ -14,7 +14,7 @@ export function skipRound(state: MatchState, context: PlayerMatchContext, confir
 /** Advancement never scores, commits robots, or runs target selection. */
 export function advanceRound(state: MatchState): MatchTransitionResult {
   if (state.phase === 'finished') return rejected(state, 'match-finished');
-  if (state.phase !== 'round-result') return rejected(state, 'wrong-phase');
+  if (state.phase !== 'round-result' && state.phase !== 'exploring') return rejected(state, 'wrong-phase');
   const common = {
     matchId: state.matchId, players: state.players, scores: state.scores,
     puzzle: state.puzzle, officialRobots: state.officialRobots, usedTargetIds: state.usedTargetIds,

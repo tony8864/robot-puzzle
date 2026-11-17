@@ -11,6 +11,11 @@ export interface CreateMatchInput {
 }
 
 export type PlayerMatchCommand =
+  | { readonly type: 'exploration.start' }
+  | { readonly type: 'exploration.move'; readonly robotId: RobotId; readonly direction: Direction }
+  | { readonly type: 'exploration.undo' }
+  | { readonly type: 'exploration.reset' }
+  | { readonly type: 'exploration.assignControl'; readonly seatId: SeatId }
   | { readonly type: 'bid.submit'; readonly value: number }
   | { readonly type: 'attempt.move'; readonly robotId: RobotId; readonly direction: Direction }
   | { readonly type: 'attempt.undo' }
@@ -98,6 +103,7 @@ export type MatchRejectionReason =
   | 'not-host'
   | 'confirmation-required'
   | 'not-active-bidder'
+  | 'not-controller'
   | 'invalid-bid'
   | 'bid-increase'
   | 'bidding-closed'

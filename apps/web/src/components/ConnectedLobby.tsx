@@ -19,6 +19,7 @@ import { DisconnectedAttemptPanel } from './DisconnectedAttemptPanel';
 import { EndRoomDialog } from './EndRoomDialog';
 import { PlayerBiddingRequestPanel } from './PlayerBiddingRequestPanel';
 import { HostBiddingRequestPanel } from './HostBiddingRequestPanel';
+import { ExplorationHostPanel } from './ExplorationHostPanel';
 
 export function ConnectedLobby({ entry, client, onTerminal, onLeave }: { readonly entry: RoomEnteredMessage; readonly client?: LiveLobbyClient;
   readonly onLeave?: () => void;
@@ -52,6 +53,8 @@ export function ConnectedLobby({ entry, client, onTerminal, onLeave }: { readonl
   const match = state.room.status === 'playing' ? state.room.match : null;
   const preparation = match?.phase === 'preparing' ? match.preparation : null;
   const isHost = state.room.hostSeatId === entry.seatId;
+  const explorationKey = match?.phase === 'exploring' ? `${match.matchId}:${match.round.number}` : null;
+  const exploring = match?.phase === 'exploring';
   const unresolved = state.end !== 'idle' || state.start !== 'idle' || state.shuffle !== 'idle' || state.preparation !== 'idle' || state.bid !== 'idle' || state.attempt !== 'idle' || state.round !== 'idle' || state.rematch !== 'idle';
   const requestLeave = !isHost && onLeave ? () => setConfirmingLeave(true) : undefined;
   const leaveDialog = confirmingLeave && requestLeave && <LeaveRoomDialog
@@ -73,7 +76,7 @@ export function ConnectedLobby({ entry, client, onTerminal, onLeave }: { readonl
     feedback={!connected || state.actionError || pendingRetry ? <>
       {status}{state.actionError && <p className="connected-lobby__error" role="alert">{state.actionError}</p>}{pendingRetry}
     </> : undefined} />{leaveDialog}{endDialog}</>;
-  if (state.room.status !== 'lobby' && !preparing && !thinking && !bidding && !demonstrating && !roundResult) return <main className="board-preview connected-lobby">
+  if (state.room.status !== 'lobby' && !preparing && !thinking && !bidding && !demonstrating && !roundResult && !exploring) return <main className="board-preview connected-lobby">
     <div className="connected-lobby__content"><RoomCode code={state.room.roomCode} />{status}
       <p>This room has already started. Live match screens are not connected yet.</p>
       {state.actionError && <p className="connected-lobby__error" role="alert">{state.actionError}</p>}{pendingRetry}
@@ -87,7 +90,8 @@ export function ConnectedLobby({ entry, client, onTerminal, onLeave }: { readonl
   const activeName = state.room.players.find((player) => player.seatId === activeBid?.seatId)?.nickname;
   const isActive = activeBid?.seatId === entry.seatId;
   const activeConnected = state.room.players.find((p) => p.seatId === activeBid?.seatId)?.connected === true;
-  const attemptId = match?.phase === 'demonstrating' ? match.attempt.id : '';
+  const canExplore = match?.phase === 'exploring' && match.controllerSeatId === entry.seatId;
+  const attemptId = match?.phase === 'demonstrating' ? match.attempt.id : explorationKey ?? '';
   const selectedRobot = selection?.attemptId === attemptId ? selection.robotId : 'red';
   const selectRobot = (robotId: RobotId) => setSelection({ attemptId, robotId });
   const error = state.actionError && <p className="connected-lobby__error" role="alert">{state.actionError}</p>;
@@ -98,7 +102,7 @@ export function ConnectedLobby({ entry, client, onTerminal, onLeave }: { readonl
         currentSeatId={entry.seatId}
         header={match ? <MatchSidebar
           round={'round' in match ? match.round.number : match.completedRounds + 1}
-          phase={preparing ? 'Preparing round' : thinking ? 'Thinking' : bidding ? 'Bidding' : demonstrating ? 'Demonstration' : 'Round complete'}
+          phase={exploring ? 'Exploration' : preparing ? 'Preparing round' : thinking ? 'Thinking' : bidding ? 'Bidding' : demonstrating ? 'Demonstration' : 'Round complete'}
           boardName={state.room.puzzle.name} targetLabel={targetLabel}
           targetColor={target?.kind === 'colored' ? `var(--color-robot-${target.robotId})` : undefined}
           targetSymbol={target?.symbol} isConnected={connected}
@@ -115,14 +119,27 @@ export function ConnectedLobby({ entry, client, onTerminal, onLeave }: { readonl
             connectionLabel={connected ? `${state.room.players.filter((player) => player.connected).length} online` : state.message}
             recovery={!connected ? status : undefined} onLeave={requestLeave} onEnd={requestEnd} endDisabled={!connected || unresolved} />}
         onShuffle={flow.shuffle} onStart={flow.start} showActions={state.room.status === 'lobby'}
-        heading={preparing ? 'Preparing round' : thinking ? 'Thinking' : bidding ? 'Bidding' : demonstrating ? 'Demonstration' : roundResult ? 'Round complete' : 'Match setup'}
+        heading={exploring ? 'Exploration' : preparing ? 'Preparing round' : thinking ? 'Thinking' : bidding ? 'Bidding' : demonstrating ? 'Demonstration' : roundResult ? 'Round complete' : 'Match setup'}
         eyebrow={match ? `Round ${'round' in match ? match.round.number : match.completedRounds + 1} of 10` : undefined}
         detail={targetLabel ? `${state.room.puzzle.name} · Target: ${targetLabel}` : state.room.puzzle.name}
-        robots={match?.phase === 'demonstrating' ? match.attempt.robots : match?.officialRobots}
+        robots={match?.phase === 'exploring' ? match.robots : match?.phase === 'demonstrating' ? match.attempt.robots : match?.officialRobots}
         activeTargetId={match && 'round' in match ? match.round.targetId : null}
-        boardKey={state.boardEpoch} selectedRobot={isActive && connected && activeConnected ? selectedRobot : null}
-        onRobotSelect={isActive && connected && activeConnected ? selectRobot : undefined}
-        roster={thinking || bidding ? <div className="bidding-panels">
+        boardKey={state.boardEpoch} selectedRobot={connected && (canExplore || isActive && activeConnected) ? selectedRobot : null}
+        onRobotSelect={connected && (canExplore || isActive && activeConnected) ? selectRobot : undefined}
+        roster={exploring && isHost && match?.phase === 'exploring' ? <ExplorationHostPanel key={explorationKey} explorationKey={explorationKey!}
+          players={state.room.players} hostSeatId={state.room.hostSeatId} controllerSeatId={match.controllerSeatId} disabled={!connected || unresolved}
+          selectedRobot={selectedRobot} moveCount={match.exploration?.moveCount ?? 0} onSelect={selectRobot}
+          onMove={(direction) => flow.move(selectedRobot, direction)} onUndo={flow.undo} onReset={flow.reset}
+          onAssignControl={flow.assignExplorationControl}
+          feedback={state.attempt === 'pending' ? 'Waiting for the server…' : state.attempt === 'retry'
+            ? 'The last action is unresolved. Retry the pending request.' : state.attemptFeedback || null}
+          onNextRound={flow.continueRound} /> : exploring && canExplore && match?.phase === 'exploring'
+          ? <DemonstrationControls exploring selectedRobot={selectedRobot} moveCount={match.exploration?.moveCount ?? 0}
+            onSelect={selectRobot} onMove={(direction) => flow.move(selectedRobot, direction)} onUndo={flow.undo} onReset={flow.reset}
+            onGiveUp={() => {}} disabled={!connected || unresolved} selectionDisabled={!connected}
+            feedback={state.attempt === 'pending' ? 'Waiting for the server…' : state.attempt === 'retry'
+              ? 'The last action is unresolved. Retry the pending request.' : state.attemptFeedback || null} />
+          : exploring ? <p className="connected-lobby__notice">{state.room.players.find((player) => player.seatId === (match?.phase === 'exploring' ? match.controllerSeatId : null))?.nickname} demonstrates</p> : thinking || bidding ? <div className="bidding-panels">
           <BidCard key={`${match?.matchId}:${match && 'round' in match ? match.round.number : 0}:${entry.seatId}`}
             disabled={!connected || unresolved || !state.bidWindowOpen} pending={state.bid === 'pending'} acceptedBid={bid} onPlaceBid={flow.placeBid} />
           {bidding && !state.bidWindowOpen && <p className="connected-lobby__notice">Waiting for the server to close bidding.</p>}
@@ -156,7 +173,7 @@ export function ConnectedLobby({ entry, client, onTerminal, onLeave }: { readonl
         startLabel={state.start === 'pending' ? 'Starting…' : state.start === 'retry' ? 'Retry Start' : 'Start Match'}
         shuffleLabel={state.shuffle === 'pending' ? 'Shuffling…' : state.shuffle === 'retry' ? 'Retry Shuffle' : 'Shuffle Board'}
         panelFooter={<>
-          {!roundResult && error}
+          {(!roundResult || exploring) && error}
           {preparing ? <section className="connected-lobby__notice" aria-label="Match preparation">
             <p role="status">{preparation?.status === 'working' ? 'Preparing a verified target…'
               : preparation?.status === 'deferred' ? 'No target was verified within the search limit. The board and robot positions are unchanged.'
@@ -168,12 +185,13 @@ export function ConnectedLobby({ entry, client, onTerminal, onLeave }: { readonl
               {!state.canRetryPreparation && connected && <p>Retry will be available shortly.</p>}
             </> : <p>Waiting for {state.room.players.find((player) => player.seatId === state.room.hostSeatId)?.nickname} to retry preparation.</p>)}
           </section> : state.room.status === 'lobby' && state.room.players.length < 2 && <p className="connected-lobby__notice">At least two players are needed to start.</p>}
-          {!roundResult && pendingRetry}
+          {(!roundResult || exploring) && pendingRetry}
         </>} />
-      {match?.phase === 'round-result' && <RoundResultModal key={`${match.matchId}:${match.round.number}`}
+      {match?.phase === 'round-result' && !exploring && <RoundResultModal key={`${match.matchId}:${match.round.number}`}
         match={{ round: match.round, outcome: match.outcome, players: state.room.players }}
         isHost={isHost} hostName={state.room.players.find((player) => player.seatId === state.room.hostSeatId)!.nickname}
         onContinue={flow.continueRound} pending={state.round === 'pending'} disabled={!connected || unresolved}
+        onExplore={isHost ? flow.startExploration : undefined}
         administrativeActions={administrativeActions}
         recovery={!connected || state.actionError || pendingRetry ? <>{status}{error}{pendingRetry}</> : undefined} />}
     </div>

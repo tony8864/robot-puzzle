@@ -41,6 +41,43 @@ function frozen<T>(value: T): T {
   return value;
 }
 
+test('host starts temporary Exploration once; wrong phases and other players reject', () => {
+  const open = thinking();
+  const result = resolved(skip(open).state);
+  expect(player(open, { type: 'exploration.start' }).outcome).toEqual({ status: 'rejected', reason: 'wrong-phase' });
+  expect(player(result, { type: 'exploration.start' }, 'alex').outcome).toEqual({ status: 'rejected', reason: 'not-host' });
+  expect(player(result, { type: 'exploration.start' }, 'ghost').outcome).toEqual({ status: 'rejected', reason: 'unknown-player' });
+  const next = player(frozen(result), { type: 'exploration.start' });
+  expect(next.outcome.status).toBe('accepted');
+  expect(next.state).toEqual({ ...result, phase: 'exploring', controllerSeatId: 'maria', robots: result.round.startRobots,
+    exploration: { version: 0, moves: [] } });
+  expect(player(next.state, { type: 'exploration.start' }).outcome).toEqual({ status: 'rejected', reason: 'wrong-phase' });
+  for (const command of [{ type: 'bid.submit', value: 1 }, { type: 'attempt.move', robotId: 'red', direction: 'up' },
+    { type: 'attempt.undo' }, { type: 'attempt.reset' }, { type: 'attempt.giveUp' }] as const) {
+    expect(player(next.state, command)).toEqual({ state: next.state, outcome: { status: 'rejected', reason: 'wrong-phase' } });
+  }
+  expect(advance(next.state)).toEqual(advance(result));
+});
+
+test.each([1, 10] as const)('Exploration after successful round %s preserves official positions and advancement', (number) => {
+  const open = thinking();
+  const proof = prepareNextRound({ ...options, puzzle: starterBoard, robots: open.officialRobots, usedTargetIds: [] });
+  if (proof.status !== 'selected') throw new Error('Expected proof');
+  let state = player(open, { type: 'bid.submit', value: proof.internalProof.length }).state;
+  state = transitionMatch(state, { source: 'controller', context: { nowMs: 61_000 }, command: { type: 'time.advance' } }).state;
+  for (const step of proof.internalProof) state = player(state, { type: 'attempt.move', ...step }, 'maria', 'maria', 61_000).state;
+  const solved = resolved(state);
+  const result = number === 1 ? solved : { ...solved, completedRounds: number, round: { ...solved.round, number } };
+  const next = player(frozen(result), { type: 'exploration.start' }).state;
+  if (next.phase !== 'exploring') throw new Error('Expected Exploration');
+  expect(next.robots).toEqual(result.round.startRobots);
+  expect(next.robots).not.toEqual(result.officialRobots);
+  expect(next.officialRobots).toBe(result.officialRobots);
+  expect(next.scores).toBe(result.scores);
+  expect(next.outcome).toBe(result.outcome);
+  expect(advance(next)).toEqual(advance(result));
+});
+
 test('confirmed host skip resolves exactly one unbid round without changing official data', () => {
   const state = thinking();
   const result = skip(state);
